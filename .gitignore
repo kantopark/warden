@@ -1,0 +1,5 @@
+# idea files
+.idea/
+
+# development database
+local-dev.db
