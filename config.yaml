@@ -1,3 +1,7 @@
 store:
   dsn: local-dev.db  # postgres example:  "host=myhost port=1433 user=username dbname=dbname password=mypassword"
   dialect: sqlite3  # supports sqlite3, mssql, mysql, postgres
+
+server:
+  port: 8888
+  graceperiod: 3s  # number of seconds for graceful shutdown
