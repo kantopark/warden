@@ -1,4 +1,4 @@
-package server
+package router
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ type app struct {
 	Store  *store.Store
 }
 
-func NewServer() *chi.Mux {
+func NewRouter() *chi.Mux {
 	r := chi.NewRouter()
 
 	// More information on Chi middleware can be found at https://github.com/go-chi/chi#middlewares
