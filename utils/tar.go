@@ -10,9 +10,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+type TarDirOptions struct {
+	SkipGit bool // skips archiving if item is a child of .git folder
+}
+
 // Tars a directory or file. If tarring is successful, returns the filepath
 // of the tarred directory
-func TarDirectory(source, target string) (string, error) {
+func TarDir(source, target string, options *TarDirOptions) (string, error) {
+	if options == nil {
+		options = &TarDirOptions{
+			SkipGit: false,
+		}
+	}
+
 	_, err := os.Stat(source)
 	if err == os.ErrNotExist {
 		return "", err
@@ -42,8 +52,8 @@ func TarDirectory(source, target string) (string, error) {
 
 	// walk through the source folder recursively and put in everything
 	err = filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
-		// Skip the git folder
-		if info.Name() == ".git" && info.IsDir() {
+		relativeName := strings.TrimPrefix(path, source+"\\")
+		if options.SkipGit && strings.HasPrefix(relativeName, ".git") {
 			return nil
 		}
 
