@@ -9,9 +9,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+type TarDirOption struct {
+	RemoveIfExist bool
+}
+
 // Tars a directory or file. If tarring is successful, returns the filepath
 // of the tarred directory
-func TarDir(source, target string) (string, error) {
+func TarDir(source, target string, options *TarDirOption) (string, error) {
+	if options == nil {
+		options = &TarDirOption{}
+	}
+
 	_, err := os.Stat(source)
 	if err == os.ErrNotExist {
 		return "", err
@@ -40,6 +48,11 @@ func TarDir(source, target string) (string, error) {
 	}); err != nil {
 		return "", errors.Wrap(err, "error encountered when walking through source")
 	}
+	if _, err := os.Stat(target); err == nil && options.RemoveIfExist {
+		// file exists
+		os.Remove(target)
+	}
+
 	if err := archiver.Archive(files, target); err != nil {
 		return "", errors.Wrap(err, "error encountered when tarring source")
 	}
