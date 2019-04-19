@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -42,7 +43,7 @@ func NewClient() (*Client, error) {
 func startRedis(c *client.Client, ctx context.Context) error {
 	redisImage := "redis:latest"
 
-	imagePullResp, err := c.ImagePull(ctx, redisImage, types.ImagePullOptions{})
+	imagePullResp, err := c.ImagePull(ctx, fmt.Sprintf("docker.io/library/%s", redisImage), types.ImagePullOptions{})
 	if err != nil {
 		return errors.Wrap(err, "error pulling Redis image")
 	}
