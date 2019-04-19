@@ -3,9 +3,11 @@ package docker
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -16,11 +18,10 @@ import (
 // that the required image is in the repository so that the various nodes are
 // able to get the images as required.
 type Client struct {
-	cli *client.Client
-	ctx context.Context
+	cli     *client.Client
+	ctx     context.Context
+	redisId string
 }
-
-var redisId string
 
 // Creates a new cli to oversee operations of the Docker cli
 func NewClient() (*Client, error) {
@@ -30,28 +31,51 @@ func NewClient() (*Client, error) {
 		return nil, errors.Wrap(err, "error creating new Docker Client")
 	}
 
-	if err := startRedis(c, ctx); err != nil {
+	cli := &Client{
+		cli: c,
+		ctx: ctx,
+	}
+	if err := cli.startRedis(); err != nil {
 		return nil, err
 	}
 
-	return &Client{
-		cli: c,
-		ctx: ctx,
-	}, nil
+	return cli, nil
 }
 
-func startRedis(c *client.Client, ctx context.Context) error {
+func (c *Client) startRedis() error {
 	redisImage := "redis:latest"
+	containerName := "warden-redis"
 
-	imagePullResp, err := c.ImagePull(ctx, fmt.Sprintf("docker.io/library/%s", redisImage), types.ImagePullOptions{})
+	imagePullResp, err := c.cli.ImagePull(
+		c.ctx,
+		fmt.Sprintf("docker.io/library/%s", redisImage),
+		types.ImagePullOptions{})
 	if err != nil {
 		return errors.Wrap(err, "error pulling Redis image")
 	}
 	defer imagePullResp.Close()
 	streamResponse(imagePullResp)
 
-	redisCont, err := c.ContainerCreate(
-		ctx,
+	// Remove redis containers that were somehow not destroyed previously
+	ftr := filters.NewArgs()
+	ftr.Add("name", containerName)
+	redisContainer, _ := c.cli.ContainerList(
+		c.ctx,
+		types.ContainerListOptions{
+			Filters: ftr,
+			All:     true})
+
+	if len(redisContainer) > 0 {
+		for _, _container := range redisContainer {
+			if err := c.removeRedis(_container.ID); err != nil {
+				log.Fatalln(err)
+			}
+		}
+	}
+
+	// Starts a new redis container
+	redisCont, err := c.cli.ContainerCreate(
+		c.ctx,
 		&container.Config{
 			Image:        redisImage,
 			ExposedPorts: nat.PortSet{"6379": struct{}{}},
@@ -66,8 +90,8 @@ func startRedis(c *client.Client, ctx context.Context) error {
 		return errors.Wrap(err, "error creating Redis container")
 	}
 
-	redisId = redisCont.ID
-	err = c.ContainerStart(ctx, redisId, types.ContainerStartOptions{})
+	c.redisId = redisCont.ID
+	err = c.cli.ContainerStart(c.ctx, c.redisId, types.ContainerStartOptions{})
 	if err != nil {
 		return errors.Wrap(err, "error starting Redis container")
 	}
@@ -77,20 +101,22 @@ func startRedis(c *client.Client, ctx context.Context) error {
 
 // Teardowns the Client object properly
 func (c *Client) Close() error {
-	// Stops and remove redis container
-	if err := c.cli.ContainerKill(c.ctx, redisId, "KILL"); err != nil {
-		return errors.Wrap(err, "error killing Redis container")
-	}
-	if err := c.cli.ContainerRemove(c.ctx, redisId, types.ContainerRemoveOptions{
-		RemoveVolumes: true,
-		RemoveLinks:   true,
-		Force:         true,
-	}); err != nil {
-		return errors.Wrap(err, "error removing Redis container")
+	if err := c.removeRedis(c.redisId); err != nil {
+		return err
 	}
 	if err := c.cli.Close(); err != nil {
 		return errors.Wrap(err, "error stopping docker cli")
 	}
 	c.ctx.Done()
+	return nil
+}
+
+// Kills and remove the redis container
+func (c *Client) removeRedis(containerId string) error {
+	if err := c.cli.ContainerRemove(c.ctx, containerId, types.ContainerRemoveOptions{
+		Force: true,
+	}); err != nil {
+		return errors.Wrap(err, "error removing Redis container")
+	}
 	return nil
 }
