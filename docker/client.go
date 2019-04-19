@@ -10,19 +10,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-// A manager for the docker images. Each function and it's various RunTags are
-// essentially a Docker Image which the cluster will deploy. This manager ensures
+// A cli for the docker images. Each function and it's various RunTags are
+// essentially a Docker Image which the cluster will deploy. The cli ensures
 // that the required image is in the repository so that the various nodes are
 // able to get the images as required.
-type Manager struct {
-	client *client.Client
-	ctx    context.Context
+type Client struct {
+	cli *client.Client
+	ctx context.Context
 }
 
 var redisId string
 
-// Creates a new manager to oversee operations of the Docker client
-func NewManager() (*Manager, error) {
+// Creates a new cli to oversee operations of the Docker cli
+func NewClient() (*Client, error) {
 	ctx := context.Background()
 	c, err := client.NewEnvClient()
 	if err != nil {
@@ -33,9 +33,9 @@ func NewManager() (*Manager, error) {
 		return nil, err
 	}
 
-	return &Manager{
-		client: c,
-		ctx:    ctx,
+	return &Client{
+		cli: c,
+		ctx: ctx,
 	}, nil
 }
 
@@ -74,22 +74,22 @@ func startRedis(c *client.Client, ctx context.Context) error {
 	return nil
 }
 
-// Teardowns the Manager object properly
-func (m *Manager) Close() error {
+// Teardowns the Client object properly
+func (c *Client) Close() error {
 	// Stops and remove redis container
-	if err := m.client.ContainerKill(m.ctx, redisId, "KILL"); err != nil {
+	if err := c.cli.ContainerKill(c.ctx, redisId, "KILL"); err != nil {
 		return errors.Wrap(err, "error killing Redis container")
 	}
-	if err := m.client.ContainerRemove(m.ctx, redisId, types.ContainerRemoveOptions{
+	if err := c.cli.ContainerRemove(c.ctx, redisId, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 		RemoveLinks:   true,
 		Force:         true,
 	}); err != nil {
 		return errors.Wrap(err, "error removing Redis container")
 	}
-	if err := m.client.Close(); err != nil {
-		return errors.Wrap(err, "error stopping docker client")
+	if err := c.cli.Close(); err != nil {
+		return errors.Wrap(err, "error stopping docker cli")
 	}
-	m.ctx.Done()
+	c.ctx.Done()
 	return nil
 }

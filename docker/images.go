@@ -49,7 +49,7 @@ func init() {
 
 // Builds the image specified in the ImageBuildOptions. In normal circumstances,
 // you should run this as a go routine.
-func (m *Manager) BuildImage(options ImageBuildOptions) error {
+func (c *Client) BuildImage(options ImageBuildOptions) error {
 	// validations
 	if utils.StrIsEmptyOrWhitespace(options.Handler) {
 		return errors.New("handler must be specified")
@@ -63,10 +63,10 @@ func (m *Manager) BuildImage(options ImageBuildOptions) error {
 		return errors.New("project name must be specified")
 	}
 
-	return m.buildImage(options)
+	return c.buildImage(options)
 }
 
-func (m *Manager) buildImage(options ImageBuildOptions) error {
+func (c *Client) buildImage(options ImageBuildOptions) error {
 	// Cloning and checking out repository portion
 	// Creating a temp folder to house the image build artifacts
 	dir, err := ioutil.TempDir(os.TempDir(), options.Name+"-"+options.Hash)
@@ -150,7 +150,7 @@ func (m *Manager) buildImage(options ImageBuildOptions) error {
 
 	// Build the image
 	// TODO: add a repository
-	resp, err := m.client.ImageBuild(ctx, tarfile, types.ImageBuildOptions{
+	resp, err := c.cli.ImageBuild(ctx, tarfile, types.ImageBuildOptions{
 		SuppressOutput: false,
 		Remove:         true,
 		ForceRemove:    true,
@@ -171,8 +171,8 @@ func (m *Manager) buildImage(options ImageBuildOptions) error {
 	return nil
 }
 
-func (m *Manager) ListImages() ([]types.ImageSummary, error) {
-	return m.client.ImageList(context.Background(), types.ImageListOptions{})
+func (c *Client) ListImages() ([]types.ImageSummary, error) {
+	return c.cli.ImageList(context.Background(), types.ImageListOptions{})
 }
 
 func prepareDockerfileTemplate(dir, env, handler string) error {
