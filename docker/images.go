@@ -19,15 +19,18 @@ import (
 	"warden/utils"
 )
 
+// Standardized options for building function images. One should ensure that
+// the username and password / access token provided has the authority to
+// clone the repository
 type ImageBuildOptions struct {
-	Name     string
-	GitURL   string
-	Hash     string
-	Username string
-	Password string
-	RunEnv   string
-	Handler  string
-	Alias    string
+	Name     string // Project Name
+	GitURL   string // URL of git repository
+	Hash     string // Commit hash of git url to build
+	Username string // Username used to clone repository.
+	Password string // Either the password for the username account or preferably the access token
+	RunEnv   string // Run time environment. i.e. Python
+	Handler  string // Handler specifies the file and function that serves as the entrypoint. i.e. main.entry_func
+	Alias    string // Alias for the function run
 }
 
 type templateDetails struct {
@@ -44,7 +47,8 @@ func init() {
 	box = _box
 }
 
-// Builds the image. In nromal circumstances, you should run this as a go-routine
+// Builds the image specified in the ImageBuildOptions. In normal circumstances,
+// you should run this as a go routine.
 func (m *Manager) BuildImage(options ImageBuildOptions) error {
 	// validations
 	if utils.StrIsEmptyOrWhitespace(options.Handler) {
@@ -59,6 +63,10 @@ func (m *Manager) BuildImage(options ImageBuildOptions) error {
 		return errors.New("project name must be specified")
 	}
 
+	return m.buildImage(options)
+}
+
+func (m *Manager) buildImage(options ImageBuildOptions) error {
 	// Cloning and checking out repository portion
 	// Creating a temp folder to house the image build artifacts
 	dir, err := ioutil.TempDir(os.TempDir(), options.Name+"-"+options.Hash)
