@@ -13,39 +13,19 @@ import (
 	"github.com/go-chi/valve"
 	"github.com/spf13/viper"
 
-	"warden/router"
+	"warden/application"
 )
-
-//func main() {
-//	configSetup()
-//
-//	man, _ := docker.NewManager()
-//	log.Println("Running build image")
-//	err := man.BuildImage(docker.ImageBuildOptions{
-//		Name:     "python-simple-proj",
-//		Alias:    "",
-//		GitURL:   "https://github.com/kantopark-tpl/python-simple.git",
-//		Hash:     "",
-//		Username: "danielbok",
-//		Password: "167b0061e33c5ef5731c2f66bc4a7a387923af36",
-//		Handler:  "main.entry_func",
-//		RunEnv:   "python",
-//	})
-//	if err != nil {
-//		log.Fatalln(err)
-//	}
-//}
 
 func main() {
 	configSetup()
 
 	valv := valve.New()
 	baseCtx := valv.Context()
-	r := router.NewApp()
+	app := application.NewApp()
 
 	srv := http.Server{
 		Addr:    ":" + viper.GetString("server.port"),
-		Handler: chi.ServerBaseContext(baseCtx, r)}
+		Handler: chi.ServerBaseContext(baseCtx, app.Router())}
 
 	c := make(chan os.Signal, 1)
 	gracePeriod := viper.GetDuration("server.graceperiod")
@@ -54,7 +34,12 @@ func main() {
 	go func() {
 		for range c {
 			// sig is a ^C, handle it
-			log.Println("shutting down..")
+			log.Println("warden is shutting down..")
+
+			// cleans up application
+			if err := app.Close(); err != nil {
+				log.Println(err)
+			}
 
 			// sends a shutdown context to the context into the server
 			if err := valv.Shutdown(gracePeriod); err != nil {
@@ -78,9 +63,8 @@ func main() {
 		}
 	}()
 
-	if err := srv.ListenAndServe(); err != nil {
-		panic(fmt.Errorf("Error occured during server start: %s\n", err))
-	}
+	srv.ListenAndServe()
+	log.Println("warden is shutdown")
 }
 
 func configSetup() {
