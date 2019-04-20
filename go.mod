@@ -12,6 +12,7 @@ require (
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
 	github.com/go-chi/chi v4.0.2+incompatible
 	github.com/go-chi/valve v0.0.0-20170920024740-9e45288364f4
+	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/jinzhu/gorm v1.9.4
 	github.com/jinzhu/now v1.0.0 // indirect
 	github.com/mholt/archiver v3.1.1+incompatible

@@ -10,7 +10,9 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 // A cli for the docker images. Each function and it's various RunTags are
@@ -21,6 +23,7 @@ type Client struct {
 	cli     *client.Client
 	ctx     context.Context
 	redisId string
+	redis   *redis.Client
 }
 
 // Creates a new cli to oversee operations of the Docker cli
@@ -94,6 +97,18 @@ func (c *Client) startRedis() error {
 	err = c.cli.ContainerStart(c.ctx, c.redisId, types.ContainerStartOptions{})
 	if err != nil {
 		return errors.Wrap(err, "error starting Redis container")
+	}
+
+	// start up redis client
+	redisAddr := fmt.Sprintf("%s:%d", viper.GetString("redis.addr"), viper.GetInt("redis.port"))
+	c.redis = redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: viper.GetString("redis.password"),
+		DB:       viper.GetInt("redis.DB"),
+	})
+	_, err = c.redis.Ping().Result()
+	if err != nil {
+		return errors.Wrapf(err, "error connecting to the redis server at %s", redisAddr)
 	}
 
 	return nil
