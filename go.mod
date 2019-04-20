@@ -3,7 +3,6 @@ module warden
 go 1.12
 
 require (
-	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
@@ -19,7 +18,6 @@ require (
 	github.com/nwaples/rardecode v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/pkg/errors v0.8.1
-	github.com/sirupsen/logrus v1.4.1 // indirect
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.2.2
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
