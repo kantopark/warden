@@ -64,9 +64,12 @@ func (c *Client) startRedis() error {
 	redisImage := viper.GetString("redis.image")
 	containerName := "warden-redis"
 
-	err := c.PullImage(redisImage, "docker.io/library", nil)
-	if err != nil {
-		return errors.Wrap(err, "error pulling Redis image")
+	// pull the redis image if we can't find it in the local repo
+	if img, _ := c.FindImageByName(redisImage); img == nil {
+		err := c.PullImage(redisImage, "docker.io/library", nil)
+		if err != nil {
+			return errors.Wrap(err, "error pulling Redis image")
+		}
 	}
 
 	// Remove redis containers that were somehow not destroyed previously
