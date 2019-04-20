@@ -216,22 +216,22 @@ func prepareDockerfileTemplate(dir, env, handler string) error {
 	return nil
 }
 
-// Returns the first image specified by the identifiers
-func (c *Client) FindFirstImage(identifiers map[string]string) (*types.ImageSummary, error) {
+// Returns the first image specified by the regex name string. If multiple images
+// are matched by the name, returns the first image
+func (c *Client) FindImageByName(regexName string) (*types.ImageSummary, error) {
 	ftr := filters.NewArgs()
-	for key, value := range identifiers {
-		ftr.Add(key, value)
-	}
+	ftr.Add("reference", regexName)
+
 	images, err := c.cli.ImageList(c.ctx, types.ImageListOptions{
 		All:     false,
-		Filters: filters.Args{},
+		Filters: ftr,
 	})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "error looking for image")
 	}
 	if len(images) == 0 {
-		return nil, errors.Wrap(err, "could not find image specified")
+		return nil, errors.New("could not find image specified")
 	}
 
 	return &images[0], nil
