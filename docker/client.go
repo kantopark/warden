@@ -13,6 +13,8 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+
+	"warden/utils"
 )
 
 // A cli for the docker images. Each function and it's various RunTags are
@@ -34,6 +36,19 @@ func NewClient() (*Client, error) {
 		return nil, errors.Wrap(err, "error creating new Docker Client")
 	}
 
+	// Login if username is provided
+	if !utils.StrIsEmptyOrWhitespace(viper.GetString("docker.username")) {
+		_, err := c.RegistryLogin(ctx, types.AuthConfig{
+			Username:      viper.GetString("docker.username"),
+			Password:      viper.GetString("docker.password"),
+			Email:         viper.GetString("docker.email"),
+			ServerAddress: viper.GetString("docker.serveraddr"),
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "error logging in")
+		}
+	}
+
 	cli := &Client{
 		cli: c,
 		ctx: ctx,
@@ -46,18 +61,13 @@ func NewClient() (*Client, error) {
 }
 
 func (c *Client) startRedis() error {
-	redisImage := "redis:latest"
+	redisImage := viper.GetString("redis.image")
 	containerName := "warden-redis"
 
-	imagePullResp, err := c.cli.ImagePull(
-		c.ctx,
-		fmt.Sprintf("docker.io/library/%s", redisImage),
-		types.ImagePullOptions{})
+	err := c.PullImage(redisImage, "docker.io/library", nil)
 	if err != nil {
 		return errors.Wrap(err, "error pulling Redis image")
 	}
-	defer imagePullResp.Close()
-	streamResponse(imagePullResp)
 
 	// Remove redis containers that were somehow not destroyed previously
 	ftr := filters.NewArgs()

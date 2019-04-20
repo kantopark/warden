@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/pkg/errors"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -31,6 +32,11 @@ type ImageBuildOptions struct {
 	RunEnv   string // Run time environment. i.e. Python
 	Handler  string // Handler specifies the file and function that serves as the entrypoint. i.e. main.entry_func
 	Alias    string // Alias for the function run
+}
+
+type ImagePullOptions struct {
+	types.ImagePullOptions
+	Repo string
 }
 
 type templateDetails struct {
@@ -63,6 +69,15 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 		return errors.New("project name must be specified")
 	}
 
+	// TODO check if image exists
+	// If it does stop
+
+	// TODO check if image is getting built
+	// If it is, stop
+
+	// TODO build image, set redis key
+	// build image
+	// remove redis key
 	return c.buildImage(options)
 }
 
@@ -197,6 +212,48 @@ func prepareDockerfileTemplate(dir, env, handler string) error {
 	default:
 		return errors.Errorf("Unknown runtime environment: %s", env)
 	}
+
+	return nil
+}
+
+// Returns the first image specified by the identifiers
+func (c *Client) FindFirstImage(identifiers map[string]string) (*types.ImageSummary, error) {
+	ftr := filters.NewArgs()
+	for key, value := range identifiers {
+		ftr.Add(key, value)
+	}
+	images, err := c.cli.ImageList(c.ctx, types.ImageListOptions{
+		All:     false,
+		Filters: filters.Args{},
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "error looking for image")
+	}
+	if len(images) == 0 {
+		return nil, errors.Wrap(err, "could not find image specified")
+	}
+
+	return &images[0], nil
+}
+
+func (c *Client) PullImage(name, repo string, options *types.ImagePullOptions) error {
+	if repo == "" {
+		repo = "docker.io/library"
+	}
+	if options == nil {
+		options = &types.ImagePullOptions{}
+	}
+
+	resp, err := c.cli.ImagePull(
+		c.ctx,
+		fmt.Sprintf("%s/%s", repo, name),
+		*options)
+	if err != nil {
+		return err
+	}
+	defer resp.Close()
+	streamResponse(resp)
 
 	return nil
 }
