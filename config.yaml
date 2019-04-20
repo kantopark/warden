@@ -21,3 +21,11 @@ docker:
   password: ""
   email: ""
   serveraddr: ""
+
+registry:
+  image: registry:2.7.1
+  protocol: http
+  domain: localhost
+  port: 5000
+  username: ""
+  password: ""
