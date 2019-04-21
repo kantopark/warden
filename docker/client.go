@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -36,7 +37,7 @@ func NewClient() (*Client, error) {
 		return nil, errors.Wrap(err, "error creating new Docker Client")
 	}
 
-	// Login if username is provided
+	// Login to docker hub if username is provided
 	if !utils.StrIsEmptyOrWhitespace(viper.GetString("docker.username")) {
 		_, err := c.RegistryLogin(ctx, types.AuthConfig{
 			Username:      viper.GetString("docker.username"),
@@ -85,6 +86,7 @@ func (c *Client) startRedis() error {
 
 	if len(redisContainer) > 0 {
 		for _, _container := range redisContainer {
+			log.Println("removing existing redis container")
 			if err := c.removeRedis(_container.ID); err != nil {
 				log.Fatalln(err)
 			}
@@ -92,6 +94,7 @@ func (c *Client) startRedis() error {
 	}
 
 	// Starts a new redis container
+	log.Println("starting new redis container")
 	redisCont, err := c.cli.ContainerCreate(
 		c.ctx,
 		&container.Config{
@@ -117,9 +120,10 @@ func (c *Client) startRedis() error {
 	// start up redis client
 	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	c.redis = redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: viper.GetString("redis.password"),
-		DB:       viper.GetInt("redis.DB"),
+		Addr:        redisAddr,
+		Password:    viper.GetString("redis.password"),
+		DB:          viper.GetInt("redis.DB"),
+		IdleTimeout: 5 * time.Minute,
 	})
 
 	if _, err := c.redis.Ping().Result(); err != nil {
