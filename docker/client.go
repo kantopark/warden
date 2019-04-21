@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-redis/redis"
+	"github.com/heroku/docker-registry-client/registry"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -25,6 +26,7 @@ import (
 type Client struct {
 	cli     *client.Client
 	ctx     context.Context
+	hub     *registry.Registry
 	redisId string
 	redis   *redis.Client
 }
@@ -37,7 +39,13 @@ func NewClient() (*Client, error) {
 		return nil, errors.Wrap(err, "error creating new Docker Client")
 	}
 
-	// Login to docker hub if username is provided
+	hub, err := newHub()
+	if err != nil {
+		return nil, err
+	}
+
+	// Login to docker hub if username is provided. This is probably not needed unless the default registry
+	// is credential secured
 	if !utils.StrIsEmptyOrWhitespace(viper.GetString("docker.username")) {
 		_, err := c.RegistryLogin(ctx, types.AuthConfig{
 			Username:      viper.GetString("docker.username"),
@@ -53,6 +61,7 @@ func NewClient() (*Client, error) {
 	cli := &Client{
 		cli: c,
 		ctx: ctx,
+		hub: hub,
 	}
 	if err := cli.startRedis(); err != nil {
 		return nil, err
@@ -69,7 +78,7 @@ func (c *Client) startRedis() error {
 
 	// pull the redis image if we can't find it in the local repo
 	if img, _ := c.FindImageByName(redisImage); img == nil {
-		err := c.PullImage(redisImage, "docker.io/library", nil)
+		err := c.PullImage(redisImage, &ImagePullOptions{UseDockerHub: true})
 		if err != nil {
 			return errors.Wrap(err, "error pulling Redis image")
 		}

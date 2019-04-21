@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
@@ -32,11 +35,13 @@ type ImageBuildOptions struct {
 	RunEnv   string // Run time environment. i.e. Python
 	Handler  string // Handler specifies the file and function that serves as the entrypoint. i.e. main.entry_func
 	Alias    string // Alias for the function run
+	buildId  string // Internal ID used to track whether image is getting built
 }
 
+// ImagePullOptions holds information to pull images.
 type ImagePullOptions struct {
 	types.ImagePullOptions
-	Repo string
+	UseDockerHub bool // If true, pulls image from docker hub, otherwise, pulls from private registry. Default false
 }
 
 type templateDetails struct {
@@ -68,32 +73,63 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 	} else if utils.StrIsEmptyOrWhitespace(options.Name) {
 		return errors.New("project name must be specified")
 	}
+	options.Name = strings.ToLower(options.Name)
+	options.Hash = strings.ToLower(options.Hash)
+	options.buildId = strings.ToLower(fmt.Sprintf("%s-%s", options.GitURL, options.Hash))
 
-	// TODO check if image exists
+	// TODO check if image exists in remote registry
 	// If it does stop
 
-	// TODO check if image is getting built
-	// If it is, stop
+	// Should probably set a lock here, but I don't foresee that kind of traffic
+	res := c.redis.Get(options.buildId)
+	if res.Err() != redis.Nil {
+		// there is a similar image current building. Skip
+		return nil
+	}
 
-	// TODO build image, set redis key
+	cc := make(chan int)
+	// default build time: 10 minutes
+	c.redis.Set(options.buildId, fmt.Sprintf("Building image: %s", options.buildId), 10*time.Minute)
 	// build image
-	// remove redis key
-	return c.buildImage(options)
+	go func() {
+		err := c.buildImage(options)
+		if err != nil {
+			c.redis.Set(
+				options.buildId,
+				fmt.Sprintf("Image build '%s' resulted in error. Check build again. If local build succeeded, it may mean that image build took more than 10 minutes (timeout error)", options.buildId),
+				24*time.Hour)
+			log.Println(err)
+		}
+		cc <- 1
+	}()
+	log.Println("waiting for image build to complete")
+	<-cc
+	log.Println("complete")
+	return nil
 }
 
 func (c *Client) buildImage(options ImageBuildOptions) error {
 	// Cloning and checking out repository portion
 	// Creating a temp folder to house the image build artifacts
 	dir, err := ioutil.TempDir(os.TempDir(), options.Name+"-"+options.Hash)
+	defer os.RemoveAll(dir)
 	if err != nil {
 		return errors.Wrap(err, "error creating temp dir for cloning when building image")
 	}
 
 	// Clone the repo into the temp folder
+	user := options.Username
+	pw := options.Password
+	if utils.StrIsEmptyOrWhitespace(options.Password) {
+		// if empty password, assume that no authorization needed to clone repo
+		// If user is not empty but password is empty, will have error cloning anyway
+		user, pw = "", ""
+	}
+
 	repo, err := git.PlainClone(dir, false, &git.CloneOptions{
 		Auth: &http.BasicAuth{
-			Username: options.Username,
-			Password: options.Password,
+			Username: user,
+			Password: pw,
 		},
 		URL:      options.GitURL,
 		Progress: os.Stdout,
@@ -145,14 +181,15 @@ func (c *Client) buildImage(options ImageBuildOptions) error {
 		options.Alias = strings.ToLower(options.Alias)
 	}
 
-	tagName := fmt.Sprintf("%s:%s", options.Name, options.Alias)
+	tagName := formRegistryTag(options.Username, options.Name, options.Alias)
 
-	tarDir, err := utils.TarDir(dir, tagName, nil)
+	tarDir, err := utils.TarDir(dir, tagName, &utils.TarDirOption{RemoveIfExist: true})
 	if err != nil {
 		return errors.Wrap(err, "error encountered when tarring payload for docker build context")
 	}
 
 	tarDir, _ = filepath.Abs(tarDir)
+	defer os.Remove(tarDir)
 	tarfile, err := os.Open(tarDir)
 	if err != nil {
 		return errors.Wrap(err, "error encountered when reading tarfile")
@@ -164,30 +201,89 @@ func (c *Client) buildImage(options ImageBuildOptions) error {
 	defer cancel()
 
 	// Build the image
-	// TODO: add a repository
-	resp, err := c.cli.ImageBuild(ctx, tarfile, types.ImageBuildOptions{
+	if resp, err := c.cli.ImageBuild(ctx, tarfile, types.ImageBuildOptions{
 		SuppressOutput: false,
 		Remove:         true,
 		ForceRemove:    true,
 		PullParent:     true,
 		Tags:           []string{tagName},
-	})
-
-	if err != nil {
+	}); err != nil {
 		return errors.Wrap(err, "error encountered when building image")
+	} else {
+		defer resp.Body.Close()
+		streamResponse(resp.Body)
 	}
-	defer resp.Body.Close()
-	streamResponse(resp.Body)
 
-	// remove temp directories and files
-	os.RemoveAll(dir)
-	os.Remove(tarDir)
+	// Push image to local registry.
+	if resp, err := c.cli.ImagePush(
+		c.ctx,
+		tagName,
+		types.ImagePushOptions{
+			RegistryAuth: `Base64Encode{"username":username,"password":password}`,
+		},
+	); err != nil {
+		return errors.Wrap(err, "error encountered when pushing image to (private) registry")
+	} else {
+		defer resp.Close()
+		streamResponse(resp)
+	}
 
+	c.redis.Del(options.buildId)
 	return nil
 }
 
 func (c *Client) ListImages() ([]types.ImageSummary, error) {
 	return c.cli.ImageList(context.Background(), types.ImageListOptions{})
+}
+
+// Returns the first image specified by the regex name string. If multiple images
+// are matched by the name, returns the first image
+func (c *Client) FindImageByName(regexName string) (*types.ImageSummary, error) {
+	ftr := filters.NewArgs()
+	ftr.Add("reference", regexName)
+
+	images, err := c.cli.ImageList(c.ctx, types.ImageListOptions{
+		All:     false,
+		Filters: ftr,
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "error looking for image")
+	}
+	if len(images) == 0 {
+		return nil, errors.New("could not find image specified")
+	}
+
+	return &images[0], nil
+}
+
+func (c *Client) PullImage(name string, options *ImagePullOptions) error {
+	if options == nil {
+		options = &ImagePullOptions{
+			types.ImagePullOptions{},
+			false,
+		}
+	}
+
+	var repo string
+	if options.UseDockerHub {
+		repo = "docker.io/library"
+	} else {
+		repo := fmt.Sprintf("%s://%s", viper.GetString("registry.protocol"), viper.GetString("registry.domain"))
+		port := viper.GetInt("registry.port")
+		if port != 0 && port != 80 && port != 443 {
+			repo = fmt.Sprintf("%s:%d", repo, port)
+		}
+	}
+
+	resp, err := c.cli.ImagePull(c.ctx, fmt.Sprintf("%s/%s", repo, name), options.ImagePullOptions)
+	if err != nil {
+		return err
+	}
+	defer resp.Close()
+	streamResponse(resp)
+
+	return nil
 }
 
 func prepareDockerfileTemplate(dir, env, handler string) error {
@@ -212,48 +308,6 @@ func prepareDockerfileTemplate(dir, env, handler string) error {
 	default:
 		return errors.Errorf("Unknown runtime environment: %s", env)
 	}
-
-	return nil
-}
-
-// Returns the first image specified by the regex name string. If multiple images
-// are matched by the name, returns the first image
-func (c *Client) FindImageByName(regexName string) (*types.ImageSummary, error) {
-	ftr := filters.NewArgs()
-	ftr.Add("reference", regexName)
-
-	images, err := c.cli.ImageList(c.ctx, types.ImageListOptions{
-		All:     false,
-		Filters: ftr,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "error looking for image")
-	}
-	if len(images) == 0 {
-		return nil, errors.New("could not find image specified")
-	}
-
-	return &images[0], nil
-}
-
-func (c *Client) PullImage(name, repo string, options *types.ImagePullOptions) error {
-	if repo == "" {
-		repo = "docker.io/library"
-	}
-	if options == nil {
-		options = &types.ImagePullOptions{}
-	}
-
-	resp, err := c.cli.ImagePull(
-		c.ctx,
-		fmt.Sprintf("%s/%s", repo, name),
-		*options)
-	if err != nil {
-		return err
-	}
-	defer resp.Close()
-	streamResponse(resp)
 
 	return nil
 }

@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,14 +14,14 @@ type TarDirOption struct {
 }
 
 // Tars a directory or file. If tarring is successful, returns the filepath
-// of the tarred directory
+// of the tarred directory. This function is normally used to zip the app
+// after cloning / checking out from git so that we can pass it to the
+// docker SDK to build the image.
 func TarDir(source, target string, options *TarDirOption) (string, error) {
 	if options == nil {
 		options = &TarDirOption{}
 	}
 
-	log.Println("source: ", source)
-	log.Println("target: ", target)
 	if !PathExists(source) {
 		return "", errors.New("source path does not exist")
 	}
