@@ -77,8 +77,13 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 	options.Hash = strings.ToLower(options.Hash)
 	options.buildId = strings.ToLower(fmt.Sprintf("%s-%s", options.GitURL, options.Hash))
 
-	// TODO check if image exists in remote registry
-	// If it does stop
+	if !utils.StrIsEmptyOrWhitespace(options.Hash) {
+		if hasTag, err := c.hubHasImage(options.Username, options.Name, options.Hash); err != nil {
+			log.Println(err)
+		} else if hasTag {
+			return nil // image exists in repository. Skip
+		}
+	}
 
 	// Should probably set a lock here, but I don't foresee that kind of traffic
 	res := c.redis.Get(options.buildId)
@@ -87,7 +92,6 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 		return nil
 	}
 
-	cc := make(chan int)
 	// default build time: 10 minutes
 	c.redis.Set(options.buildId, fmt.Sprintf("Building image: %s", options.buildId), 10*time.Minute)
 	// build image
@@ -100,11 +104,7 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 				24*time.Hour)
 			log.Println(err)
 		}
-		cc <- 1
 	}()
-	log.Println("waiting for image build to complete")
-	<-cc
-	log.Println("complete")
 	return nil
 }
 
@@ -155,6 +155,11 @@ func (c *Client) buildImage(options ImageBuildOptions) error {
 
 		options.Hash = commit.Hash.String()
 	}
+	if hasTag, err := c.hubHasImage(options.Username, options.Name, options.Hash); err != nil {
+		log.Println(err)
+	} else if hasTag {
+		return nil // image exists, skip
+	}
 
 	// Checkout the hash specified
 	tree, err := repo.Worktree()
@@ -174,14 +179,7 @@ func (c *Client) buildImage(options ImageBuildOptions) error {
 		return errors.Wrap(err, "error when building image")
 	}
 
-	// Alias
-	if utils.StrIsEmptyOrWhitespace(options.Alias) {
-		options.Alias = "latest"
-	} else {
-		options.Alias = strings.ToLower(options.Alias)
-	}
-
-	tagName := formRegistryTag(options.Username, options.Name, options.Alias)
+	tagName := formRegistryTag(options.Username, options.Name, options.Hash)
 
 	tarDir, err := utils.TarDir(dir, tagName, &utils.TarDirOption{RemoveIfExist: true})
 	if err != nil {
