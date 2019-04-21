@@ -62,7 +62,9 @@ func NewClient() (*Client, error) {
 
 func (c *Client) startRedis() error {
 	redisImage := viper.GetString("redis.image")
-	containerName := "warden-redis"
+	redisHost := viper.GetString("redis.addr")
+	redisPort := viper.GetString("redis.port")
+	containerName := "warden_redis"
 
 	// pull the redis image if we can't find it in the local repo
 	if img, _ := c.FindImageByName(redisImage); img == nil {
@@ -94,13 +96,13 @@ func (c *Client) startRedis() error {
 		c.ctx,
 		&container.Config{
 			Image:        redisImage,
-			ExposedPorts: nat.PortSet{"6379": struct{}{}},
+			ExposedPorts: nat.PortSet{nat.Port(redisPort): struct{}{}},
 		},
 		&container.HostConfig{
-			PortBindings: map[nat.Port][]nat.PortBinding{nat.Port("6379"): {{HostIP: "127.0.0.1", HostPort: "6379"}}},
+			PortBindings: map[nat.Port][]nat.PortBinding{nat.Port(redisPort): {{HostIP: redisHost, HostPort: redisPort}}},
 		},
 		nil,
-		"warden-redis",
+		containerName,
 	)
 	if err != nil {
 		return errors.Wrap(err, "error creating Redis container")
@@ -113,14 +115,14 @@ func (c *Client) startRedis() error {
 	}
 
 	// start up redis client
-	redisAddr := fmt.Sprintf("%s:%d", viper.GetString("redis.addr"), viper.GetInt("redis.port"))
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
 	c.redis = redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: viper.GetString("redis.password"),
 		DB:       viper.GetInt("redis.DB"),
 	})
-	_, err = c.redis.Ping().Result()
-	if err != nil {
+
+	if _, err := c.redis.Ping().Result(); err != nil {
 		return errors.Wrapf(err, "error connecting to the redis server at %s", redisAddr)
 	}
 
