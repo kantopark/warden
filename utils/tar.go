@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,9 +21,10 @@ func TarDir(source, target string, options *TarDirOption) (string, error) {
 		options = &TarDirOption{}
 	}
 
-	_, err := os.Stat(source)
-	if err == os.ErrNotExist {
-		return "", err
+	log.Println("source: ", source)
+	log.Println("target: ", target)
+	if !PathExists(source) {
+		return "", errors.New("source path does not exist")
 	}
 
 	target = strings.TrimSpace(target)
@@ -48,8 +50,8 @@ func TarDir(source, target string, options *TarDirOption) (string, error) {
 	}); err != nil {
 		return "", errors.Wrap(err, "error encountered when walking through source")
 	}
-	if _, err := os.Stat(target); err == nil && options.RemoveIfExist {
-		// file exists
+
+	if PathExists(target) && options.RemoveIfExist {
 		os.Remove(target)
 	}
 
