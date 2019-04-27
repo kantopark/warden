@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -81,6 +82,7 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 		if hasTag, err := c.hubHasImage(options.Username, options.Name, options.Hash); err != nil {
 			log.Println(err)
 		} else if hasTag {
+			log.Printf("image '%s/%s:%s' already exists", options.Username, options.Name, options.Hash)
 			return nil // image exists in repository. Skip
 		}
 	}
@@ -89,11 +91,13 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 	res := c.redis.Get(options.buildId)
 	if res.Err() != redis.Nil {
 		// there is a similar image current building. Skip
+		log.Printf("image '%s/%s:%s' already building", options.Username, options.Name, options.Hash)
 		return nil
 	}
 
 	// default build time: 10 minutes
 	c.redis.Set(options.buildId, fmt.Sprintf("Building image: %s", options.buildId), 10*time.Minute)
+
 	// build image
 	go func() {
 		err := c.buildImage(options)
@@ -105,6 +109,7 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 			log.Println(err)
 		}
 	}()
+
 	return nil
 }
 
@@ -143,18 +148,32 @@ func (c *Client) buildImage(options ImageBuildOptions) error {
 	// Prepare the hash for the right checkout. If hash provided is an empty string or "latest",
 	// Will checkout the latest commit
 	options.Hash = strings.ToLower(strings.TrimSpace(options.Hash))
+	commits, err := repo.CommitObjects()
+	if err != nil {
+		return errors.Wrap(err, "error getting repo commits")
+	}
+
 	if utils.StrIn(options.Hash, nil, "", "latest") {
-		commits, err := repo.CommitObjects()
-		if err != nil {
-			return errors.Wrap(err, "error getting repo commits when building image")
-		}
 		commit, err := commits.Next()
 		if err != nil {
 			return errors.Wrap(err, "error getting latest commit when building image")
 		}
-
 		options.Hash = commit.Hash.String()
+	} else {
+		for {
+			c, err := commits.Next()
+			if err == io.EOF {
+				return errors.Wrapf(err, "could not find commit prefixed with hash '%s'", options.Hash)
+			} else if err != nil {
+				return errors.Wrap(err, "error reading commit history")
+			}
+			if strings.HasPrefix(c.Hash.String(), options.Hash) {
+				options.Hash = c.Hash.String()
+				break
+			}
+		}
 	}
+
 	if hasTag, err := c.hubHasImage(options.Username, options.Name, options.Hash); err != nil {
 		log.Println(err)
 	} else if hasTag {
