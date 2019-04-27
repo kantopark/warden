@@ -33,3 +33,33 @@ func TestStrIsEmptyOrWhitespace(t *testing.T) {
 	assert.True(t, StrIsEmptyOrWhitespace(""))
 	assert.True(t, StrIsEmptyOrWhitespace("  \n "))
 }
+
+func TestStrIsIn(t *testing.T) {
+	assert.True(t, StrIsIn("hello", []string{"hello", "world"}))
+	assert.False(t, StrIsIn("hello", []string{"Hello", "world"}))
+}
+
+func ExampleStrIsIn() {
+	listOfStrings := []string{"hello", "world"}
+	if StrIsIn("hello", listOfStrings) {
+		// ... do your stuff
+	}
+}
+
+func TestStrIsInEqualFold(t *testing.T) {
+	assert.True(t, StrIsIn("hello", []string{"hello", "world"}))
+	assert.True(t, StrIsIn("hello", []string{"Hello", "world"}))
+	assert.False(t, StrIsIn("hello", []string{"Python", "world"}))
+}
+
+func ExampleStrIsInEqualFold() {
+	listOfStrings := []string{"hello", "world"}
+	if StrIsInEqualFold("hello", listOfStrings) {
+		// ... do your stuff
+	}
+
+	listOfStringsUpper := []string{"HELLO", "WORLD"}
+	if StrIsInEqualFold("hello", listOfStringsUpper) {
+		// ... this will be true too!
+	}
+}

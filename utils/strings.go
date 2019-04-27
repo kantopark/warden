@@ -41,3 +41,25 @@ func getStrOptions(option *StrOption) *StrOption {
 func StrIsEmptyOrWhitespace(s string) bool {
 	return strings.TrimSpace(s) == ""
 }
+
+// StrIsIn reports whether s exists in a list of string
+func StrIsIn(s string, list []string) bool {
+	for _, ss := range list {
+		if ss == s {
+			return true
+		}
+	}
+
+	return false
+}
+
+// StrIsInEqualFold reports whether s exists in a list of string, interpreted as UTF-8 strings,
+// under Unicode case-folding
+func StrIsInEqualFold(s string, list []string) bool {
+	for _, ss := range list {
+		if strings.EqualFold(s, ss) {
+			return true
+		}
+	}
+	return false
+}
