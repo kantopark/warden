@@ -11,9 +11,15 @@ import (
 	"warden/store/model"
 )
 
+const (
+	_INSTANCE = "Instance"
+	_PROJECT  = "Project"
+	_USER     = "User"
+)
+
 // A store used to carry information on the functions.
 type Store struct {
-	*gorm.DB
+	db *gorm.DB
 }
 
 // Creates a new store object. The store is used to hold information on how to run
@@ -33,18 +39,22 @@ func NewStore(dialect, dsn string) (*Store, error) {
 
 // Registers all models and migrates database to the latest version
 func (s *Store) registerModels() {
-	s.CreateTableIfNotExists(&model.Function{})
-	s.CreateTableIfNotExists(&model.RunInfo{})
+	s.CreateTableIfNotExists(&model.User{})
+	s.CreateTableIfNotExists(&model.Project{})
+	s.CreateTableIfNotExists(&model.Instance{})
 }
 
 // Creates table if it doesn't exist. Else migrates the table to the latest state.
 // Migration will only add missing fields for the given model and won't
 // delete/change current data
 func (s *Store) CreateTableIfNotExists(table interface{}) {
-	if !s.HasTable(table) {
-		s.CreateTable(table)
+	if !s.db.HasTable(table) {
+		s.db.CreateTable(table)
 	} else {
-		s.AutoMigrate(table)
+		s.db.AutoMigrate(table)
 	}
+}
 
+func (s *Store) Close() error {
+	return s.db.Close()
 }
