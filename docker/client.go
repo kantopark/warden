@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -151,6 +152,18 @@ func (c *Client) Close() error {
 		return errors.Wrap(err, "error stopping docker cli")
 	}
 	c.ctx.Done()
+
+	// Remove image build folder. This folder houses the tar folders that contain the files
+	// to build the image
+	addr := viper.GetString("registry.domain")
+	port := viper.GetInt("registry.port")
+	if port != 0 {
+		addr = fmt.Sprintf("%s-%d", addr, port)
+	}
+	if utils.PathExists(addr) {
+		os.RemoveAll(addr)
+	}
+
 	return nil
 }
 
