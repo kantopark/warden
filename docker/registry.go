@@ -7,6 +7,8 @@ import (
 	"github.com/heroku/docker-registry-client/registry"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+
+	"warden/utils"
 )
 
 // Check if image (project name) by user (username) with tag exists in
@@ -17,6 +19,15 @@ func (c *Client) hubHasImage(username, name, hash string) (bool, error) {
 	}
 
 	repo := fmt.Sprintf("%s/%s", username, name)
+	repos, err := c.hub.Repositories()
+
+	if err != nil {
+		return false, errors.Wrap(err, "error getting repos from private registry")
+	}
+	if !utils.StrIsIn(repo, repos) {
+		// repos doesn't even exist. Image does not exist!
+		return false, nil
+	}
 
 	tags, err := c.hub.Tags(repo)
 	if err != nil {
