@@ -1,19 +1,6 @@
-store:
-  dsn: local-dev.db  # postgres example:  "host=myhost port=1433 user=username dbname=dbname password=mypassword"
-  dialect: sqlite3  # supports sqlite3, mssql, mysql, postgres
-
-server:
-  port: 8888
-  graceperiod: 3s  # number of seconds for graceful shutdown
-
-redis:
-  image: redis:5.0.4-alpine
-  addr: localhost
-  port: 6379
-  DB: 0
-  password: ""
-  restart_if_exist: false
-  remove_on_exit: false  # if true, deletes the redis container when app exits. Otherwise, just flush the cache
+# deploy describes the actual function executor
+deploy:
+  type: docker  # runner to handle deployment, valid values are docker (for local test), swarm or kubernetes
 
 # This should be the docker server settings for your private repository that
 # are used to house the base images. i.e. the python runtime image
@@ -24,6 +11,17 @@ docker:
   email: ""
   serveraddr: ""
 
+# redis configuration. The redis is used as a in-memory store to handle intermediate
+# operations within the application such as image building.
+redis:
+  image: redis:5.0.4-alpine
+  addr: localhost
+  port: 6379
+  DB: 0
+  password: ""
+  restart_if_exist: false
+  remove_on_exit: false  # if true, deletes the redis container when app exits. Otherwise, just flush the cache
+
 registry:
   image: registry:2.7.1
   protocol: http
@@ -31,3 +29,12 @@ registry:
   port: 5000
   username: ""
   password: ""
+
+# server configurations for the warden (control plane)
+server:
+  port: 8888
+  graceperiod: 3s  # number of seconds for graceful shutdown
+
+store:
+  dsn: local-dev.db  # postgres example:  "host=myhost port=1433 user=username dbname=dbname password=mypassword"
+  dialect: sqlite3  # supports sqlite3, mssql, mysql, postgres
