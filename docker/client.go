@@ -25,12 +25,15 @@ import (
 // that the required image is in the repository so that the various nodes are
 // able to get the images as required.
 type Client struct {
-	cli     *client.Client
-	ctx     context.Context
-	hub     *registry.Registry
-	redisId string
-	redis   *redis.Client
+	cli   *client.Client
+	ctx   context.Context
+	hub   *registry.Registry
+	redis *redis.Client
 }
+
+const (
+	redisContainer = "warden_redis"
+)
 
 // Creates a new cli to oversee operations of the Docker cli
 func NewClient() (*Client, error) {
@@ -75,7 +78,6 @@ func (c *Client) startRedis() error {
 	redisImage := viper.GetString("redis.image")
 	redisHost := viper.GetString("redis.addr")
 	redisPort := viper.GetString("redis.port")
-	containerName := "warden_redis"
 
 	// pull the redis image if we can't find it in the local repo
 	if img, _ := c.FindImageByName(redisImage); img == nil {
@@ -85,46 +87,13 @@ func (c *Client) startRedis() error {
 		}
 	}
 
-	// Remove redis containers that were somehow not destroyed previously
-	ftr := filters.NewArgs()
-	ftr.Add("name", containerName)
-	redisContainer, _ := c.cli.ContainerList(
-		c.ctx,
-		types.ContainerListOptions{
-			Filters: ftr,
-			All:     true})
-
-	if len(redisContainer) > 0 {
-		for _, _container := range redisContainer {
-			log.Println("removing existing redis container")
-			if err := c.removeRedis(_container.ID); err != nil {
-				log.Fatalln(err)
-			}
+	if viper.GetBool("redis.restart_if_exist") {
+		if err := c.removeRedis(); err != nil {
+			return err
 		}
 	}
-
-	// Starts a new redis container
-	log.Println("starting new redis container")
-	redisCont, err := c.cli.ContainerCreate(
-		c.ctx,
-		&container.Config{
-			Image:        redisImage,
-			ExposedPorts: nat.PortSet{nat.Port(redisPort): struct{}{}},
-		},
-		&container.HostConfig{
-			PortBindings: map[nat.Port][]nat.PortBinding{nat.Port(redisPort): {{HostIP: redisHost, HostPort: redisPort}}},
-		},
-		nil,
-		containerName,
-	)
-	if err != nil {
-		return errors.Wrap(err, "error creating Redis container")
-	}
-
-	c.redisId = redisCont.ID
-	err = c.cli.ContainerStart(c.ctx, c.redisId, types.ContainerStartOptions{})
-	if err != nil {
-		return errors.Wrap(err, "error starting Redis container")
+	if err := c.runRedisContainer(); err != nil {
+		return err
 	}
 
 	// start up redis client
@@ -144,10 +113,16 @@ func (c *Client) startRedis() error {
 }
 
 // Teardowns the Client object properly
-func (c *Client) Close() error {
-	if err := c.removeRedis(c.redisId); err != nil {
+func (c *Client) Close() (err error) {
+	if viper.GetBool("redis.remove_on_exit") {
+		err = c.removeRedis()
+	} else {
+		err = c.redis.FlushAll().Err()
+	}
+	if err != nil {
 		return err
 	}
+
 	if err := c.cli.Close(); err != nil {
 		return errors.Wrap(err, "error stopping docker cli")
 	}
@@ -167,12 +142,69 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// Kills and remove the redis container
-func (c *Client) removeRedis(containerId string) error {
-	if err := c.cli.ContainerRemove(c.ctx, containerId, types.ContainerRemoveOptions{
-		Force: true,
-	}); err != nil {
-		return errors.Wrap(err, "error removing Redis container")
+// Kills and remove the redis container if it exists
+func (c *Client) removeRedis() error {
+	// search for containers with the defined redis container name
+	ftr := filters.NewArgs()
+	ftr.Add("name", redisContainer)
+	containers, _ := c.cli.ContainerList(
+		c.ctx,
+		types.ContainerListOptions{
+			Filters: ftr,
+			All:     true})
+
+	// if container exist (there should only be 1), remove it
+	if len(redisContainer) > 0 {
+		for _, con := range containers {
+			if err := c.cli.ContainerRemove(c.ctx, con.ID, types.ContainerRemoveOptions{
+				Force: true,
+			}); err != nil {
+				return errors.Wrap(err, "error removing Redis container")
+			}
+		}
 	}
+	return nil
+}
+
+// Starts a new redis container
+func (c *Client) runRedisContainer() error {
+	redisImage := viper.GetString("redis.image")
+	redisHost := viper.GetString("redis.addr")
+	redisPort := viper.GetString("redis.port")
+
+	ftr := filters.NewArgs()
+	ftr.Add("name", redisContainer)
+	containers, _ := c.cli.ContainerList(
+		c.ctx,
+		types.ContainerListOptions{
+			Filters: ftr,
+			All:     true})
+
+	if len(containers) > 0 {
+		log.Println("Instance of redis already running")
+		return nil
+	}
+
+	log.Println("starting new redis container")
+	redisCon, err := c.cli.ContainerCreate(
+		c.ctx,
+		&container.Config{
+			Image:        redisImage,
+			ExposedPorts: nat.PortSet{nat.Port(redisPort): struct{}{}},
+		},
+		&container.HostConfig{
+			PortBindings: map[nat.Port][]nat.PortBinding{nat.Port(redisPort): {{HostIP: redisHost, HostPort: redisPort}}},
+		},
+		nil,
+		redisContainer,
+	)
+	if err != nil {
+		return errors.Wrap(err, "error creating Redis container")
+	}
+
+	if err = c.cli.ContainerStart(c.ctx, redisCon.ID, types.ContainerStartOptions{}); err != nil {
+		return errors.Wrap(err, "error starting Redis container")
+	}
+
 	return nil
 }
