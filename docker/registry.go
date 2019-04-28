@@ -13,25 +13,24 @@ import (
 
 // Check if image (project name) by user (username) with tag exists in
 // the private repository. The hash must be
-func (c *Client) hubHasImage(username, name, hash string) (bool, error) {
+func (c *Client) hubHasImage(name, hash string) (bool, error) {
 	if len(hash) < 8 {
 		return false, nil
 	}
 
-	repo := fmt.Sprintf("%s/%s", username, name)
 	repos, err := c.hub.Repositories()
 
 	if err != nil {
 		return false, errors.Wrap(err, "error getting repos from private registry")
 	}
-	if !utils.StrIsIn(repo, repos) {
+	if !utils.StrIsIn(name, repos) {
 		// repos doesn't even exist. Image does not exist!
 		return false, nil
 	}
 
-	tags, err := c.hub.Tags(repo)
+	tags, err := c.hub.Tags(name)
 	if err != nil {
-		return false, errors.Wrapf(err, "error getting tags from private registry (%s) for repo (%s)", c.hub.URL, repo)
+		return false, errors.Wrapf(err, "error getting tags from private registry (%s) for repo (%s)", c.hub.URL, name)
 	}
 	hash = strings.ToLower(hash)
 	for _, t := range tags {
@@ -60,12 +59,12 @@ func newHub() (*registry.Registry, error) {
 
 // Creates the tag for the image. Name should refer to the project name and alias
 // refer to the alias of the built image.
-func formRegistryTag(username, name, hash string) string {
+func formRegistryTag(name, hash string) string {
 	addr := viper.GetString("registry.domain")
 	port := viper.GetInt("registry.port")
 	if port != 0 && port != 80 && port != 443 {
 		addr = fmt.Sprintf("%s:%d", addr, port)
 	}
 
-	return strings.ToLower(fmt.Sprintf("%s/%s/%s:%s", addr, username, name, hash))
+	return strings.ToLower(fmt.Sprintf("%s/%s:%s", addr, name, hash))
 }

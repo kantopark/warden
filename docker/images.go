@@ -79,10 +79,10 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 	options.buildId = strings.ToLower(fmt.Sprintf("%s-%s", options.GitURL, options.Hash))
 
 	if !utils.StrIsEmptyOrWhitespace(options.Hash) {
-		if hasTag, err := c.hubHasImage(options.Username, options.Name, options.Hash); err != nil {
+		if hasTag, err := c.hubHasImage(options.Name, options.Hash); err != nil {
 			log.Println(err)
 		} else if hasTag {
-			log.Printf("image '%s/%s:%s' already exists", options.Username, options.Name, options.Hash)
+			log.Printf("image '%s:%s' already exists", options.Name, options.Hash)
 			return nil // image exists in repository. Skip
 		}
 	}
@@ -91,7 +91,7 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 	res := c.redis.Get(options.buildId)
 	if res.Err() != redis.Nil {
 		// there is a similar image current building. Skip
-		log.Printf("image '%s/%s:%s' already building", options.Username, options.Name, options.Hash)
+		log.Printf("image '%s:%s' already building", options.Name, options.Hash)
 		return nil
 	}
 
@@ -174,7 +174,7 @@ func (c *Client) buildImage(options ImageBuildOptions) error {
 		}
 	}
 
-	if hasTag, err := c.hubHasImage(options.Username, options.Name, options.Hash); err != nil {
+	if hasTag, err := c.hubHasImage(options.Name, options.Hash); err != nil {
 		log.Println(err)
 	} else if hasTag {
 		return nil // image exists, skip
@@ -198,7 +198,7 @@ func (c *Client) buildImage(options ImageBuildOptions) error {
 		return errors.Wrap(err, "error when building image")
 	}
 
-	tagName := formRegistryTag(options.Username, options.Name, options.Hash)
+	tagName := formRegistryTag(options.Name, options.Hash)
 
 	tarDir, err := utils.TarDir(dir, tagName, &utils.TarDirOption{RemoveIfExist: true})
 	if err != nil {
