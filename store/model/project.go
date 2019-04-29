@@ -15,7 +15,7 @@ type Project struct {
 	ID          uint       `gorm:"primary_key"`
 	GitURL      string     `gorm:"column:git_url"`
 	Name        string     `gorm:"type:varchar(100)"`
-	NameUnique  string     `gorm:"type:varchar(100)"`
+	NameUnique  string     `gorm:"type:varchar(100);unique;not null;index"`
 	Description string     `gorm:"type:varchar(512)"`
 	Instances   []Instance // must at least have one Instance. To run the latest
 	Owners      []User     `gorm:"many2many:user_project;"`
