@@ -34,7 +34,7 @@ func init() {
 }
 
 type dockerManager struct {
-	routes routeMap
+	routes *routeMap
 	db     *store.Store
 	ctx    context.Context
 	cli    *client.Client
@@ -129,7 +129,7 @@ func newDockerRunner() (*dockerManager, error) {
 		return nil, err
 	}
 
-	rm := routeMap{}
+	rm := newRouteMap()
 
 	return &dockerManager{rm, db, ctx, cli}, nil
 }

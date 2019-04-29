@@ -40,3 +40,10 @@ func (r *routeMap) Delete(addr string) {
 
 	delete(r.routes, addr)
 }
+
+func newRouteMap() *routeMap {
+	return &routeMap{
+		sync.RWMutex{},
+		make(map[string]string),
+	}
+}
