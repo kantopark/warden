@@ -1,12 +1,15 @@
 package store
 
 import (
+	"sync"
+
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mssql"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 
 	"warden/store/model"
 )
@@ -22,19 +25,28 @@ type Store struct {
 	db *gorm.DB
 }
 
-// Creates a new store object. The store is used to hold information on how to run
-// functions
-func NewStore(dialect, dsn string) (*Store, error) {
-	db, err := gorm.Open(dialect, dsn)
+var store *Store
+var storeError error
+var once sync.Once
 
-	if err != nil {
-		return nil, errors.Wrapf(err, "error creating database connection. Dialect: '%s'. DSN: '%s'", dialect, dsn)
-	}
+// Returns a Store object. The store is used to hold information on how to run functions
+// The store is implemented as a singleton. Subsequent to NewStore will only return the
+// first created instance of the store.
+func NewStore() (*Store, error) {
+	once.Do(func() {
+		dialect := viper.GetString("store.dialect")
+		dsn := viper.GetString("store.dsn")
+		db, err := gorm.Open(dialect, dsn)
+		if err != nil {
+			storeError = errors.Wrapf(err, "error creating database connection. Dialect: '%s'. DSN: '%s'", dialect, dsn)
+			return
+		}
 
-	s := &Store{db}
-	s.registerModels()
+		store = &Store{db}
+		store.registerModels()
+	})
 
-	return s, nil
+	return store, storeError
 }
 
 // Registers all models and migrates database to the latest version
