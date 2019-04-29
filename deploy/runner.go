@@ -3,6 +3,7 @@ package deploy
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -10,23 +11,40 @@ import (
 	"warden/utils"
 )
 
+var once sync.Once
+var manager Manager
+var managerError error
+
 type Manager interface {
 	Close() error
 	DeployInstance(d Deployment) error
 	StopInstance(d Deployment) error
 }
 
+// Returns a deployment manager. Manager is a singleton object. Manager is
+// used as a control layer to handle deployment of functions (instances)
+// for the different deployment runtime (Docker, Swarm or Kubernetes). Note
+// that Docker should only be used for local testing while the choice of
+// Swarm or Kubernetes depends on your preference
 func NewManager() (Manager, error) {
-	r := strings.TrimSpace(strings.ToLower(viper.GetString("deploy.type")))
-	switch r {
-	case "docker":
-		return newDockerRunner()
-	default:
-		return nil, errors.Errorf("Unknown deploy type: %s", r)
-	}
+	once.Do(func() {
+		r := strings.TrimSpace(strings.ToLower(viper.GetString("deploy.type")))
+		switch r {
+		case "docker":
+			manager, managerError = newDockerRunner()
+		case "swarm":
+			managerError = errors.New("Swarm manager is not yet implemented")
+		case "kubernetes", "k8s":
+			managerError = errors.New("Kubernetes manager is not yet implemented")
+		default:
+			managerError = errors.Errorf("Unknown deploy type: %s", r)
+		}
+	})
+	return manager, managerError
 }
 
 type Deployment struct {
+	Alias      string
 	Project    string
 	Hash       string
 	MinReplica int
@@ -42,6 +60,12 @@ func (d *Deployment) validate() error {
 	}
 	if utils.StrIsEmptyOrWhitespace(d.Hash) {
 		err = append(err, "Hash field in deployment must be specified")
+	}
+
+	d.Alias = strings.ToLower(d.Alias)
+	// Latest alias also becomes default route
+	if d.Alias == "latest" {
+		d.Alias = ""
 	}
 
 	// setting up min and max replicas
@@ -65,6 +89,7 @@ func (d *Deployment) validate() error {
 	return nil
 }
 
+// Gets the Image name for the deployment
 func (d *Deployment) ImageName() string {
 	addr := viper.GetString("registry.domain")
 	port := viper.GetInt("registry.port")
@@ -73,4 +98,13 @@ func (d *Deployment) ImageName() string {
 	}
 
 	return strings.ToLower(fmt.Sprintf("%s/%s:%s", addr, d.Project, d.Hash))
+}
+
+// Gets the tail address (without the domain) for the deployment.
+func (d *Deployment) Address() string {
+	route := "/" + d.Project
+	if d.Alias != "" {
+		route += "/" + d.Alias
+	}
+	return strings.ToLower(route)
 }

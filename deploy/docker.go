@@ -2,6 +2,8 @@ package deploy
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"time"
@@ -12,6 +14,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
+
+	"warden/store"
 )
 
 const (
@@ -19,9 +23,21 @@ const (
 	dockerPortMax = 42673
 )
 
+var localIP string // A singleton string representing the IP address of the local machine.
+
+func init() {
+	if ip, err := getLocalIPAddress(); err != nil {
+		log.Fatalln(err)
+	} else {
+		localIP = ip
+	}
+}
+
 type dockerManager struct {
-	ctx context.Context
-	cli *client.Client
+	routes routeMap
+	db     *store.Store
+	ctx    context.Context
+	cli    *client.Client
 }
 
 // Deploys an instance of the container on the Docker daemon
@@ -49,6 +65,8 @@ func (m *dockerManager) DeployInstance(d Deployment) error {
 	if err := m.cli.ContainerStart(m.ctx, con.ID, types.ContainerStartOptions{}); err != nil {
 		return errors.Wrap(err, "could not start instance")
 	}
+	m.routes.Set(d.Address(), fmt.Sprintf("%s:%d", localIP, port))
+
 	return nil
 }
 
@@ -70,6 +88,7 @@ func (m *dockerManager) StopInstance(d Deployment) error {
 			return errors.Wrapf(err, "error removing container: %s", d.ImageName())
 		}
 	}
+	m.routes.Delete(d.Address())
 	return nil
 }
 
@@ -105,7 +124,14 @@ func newDockerRunner() (*dockerManager, error) {
 		return nil, errors.Wrap(err, "error creating new Docker Client")
 	}
 
-	return &dockerManager{ctx, cli}, nil
+	db, err := store.NewStore()
+	if err != nil {
+		return nil, err
+	}
+
+	rm := routeMap{}
+
+	return &dockerManager{rm, db, ctx, cli}, nil
 }
 
 // Finds a free port between 40000 and 42367. This is usually only used when
@@ -131,4 +157,19 @@ func findFreePort() (int, error) {
 	case <-time.After(20 * time.Second):
 		return 0, errors.New("unable to find free ports between 40000 and 42367")
 	}
+}
+
+// Gets the local IP address of the machine
+func getLocalIPAddress() (string, error) {
+	addresses, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", errors.Wrap(err, "could not determine machine's IP address")
+	}
+
+	for _, a := range addresses {
+		if n, ok := a.(*net.IPNet); ok && !n.IP.IsLoopback() && n.IP.To4() != nil && n.IP.IsGlobalUnicast() {
+			return n.IP.String(), nil
+		}
+	}
+	return "", errors.New("could not find global unicast address for machine. Use ifconfig (unix) or ipconfig (windows) to check if machine is connected to a network")
 }
