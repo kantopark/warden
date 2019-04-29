@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -35,43 +36,53 @@ const (
 	redisContainer = "warden_redis"
 )
 
-// Creates a new cli to oversee operations of the Docker cli
+var (
+	once              sync.Once
+	dockerClient      *Client
+	dockerClientError error
+)
+
+// Creates a new Docker Client to oversee operations of the Docker cli.
+// The Client wraps over the base Docker Client cli, only exposing methods
+// applicable to the application for safety. The client is also a singleton
 func NewClient() (*Client, error) {
-	ctx := context.Background()
-	c, err := client.NewEnvClient()
-	if err != nil {
-		return nil, errors.Wrap(err, "error creating new Docker Client")
-	}
-
-	hub, err := newHub()
-	if err != nil {
-		return nil, err
-	}
-
-	// Login to docker hub if username is provided. This is probably not needed unless the default registry
-	// is credential secured
-	if !utils.StrIsEmptyOrWhitespace(viper.GetString("docker.username")) {
-		_, err := c.RegistryLogin(ctx, types.AuthConfig{
-			Username:      viper.GetString("docker.username"),
-			Password:      viper.GetString("docker.password"),
-			Email:         viper.GetString("docker.email"),
-			ServerAddress: viper.GetString("docker.serveraddr"),
-		})
+	once.Do(func() {
+		ctx := context.Background()
+		c, err := client.NewEnvClient()
 		if err != nil {
-			return nil, errors.Wrap(err, "error logging in")
+			dockerClientError = errors.Wrap(err, "error creating new Docker Client")
 		}
-	}
 
-	cli := &Client{
-		cli: c,
-		ctx: ctx,
-		hub: hub,
-	}
-	if err := cli.startRedis(); err != nil {
-		return nil, err
-	}
+		hub, err := newHub()
+		if err != nil {
+			dockerClientError = errors.Wrap(err, "error creating new Docker Client, hub creation failure")
+		}
 
-	return cli, nil
+		// Login to docker hub if username is provided. This is probably not needed unless the default registry
+		// is credential secured
+		if !utils.StrIsEmptyOrWhitespace(viper.GetString("docker.username")) {
+			_, err := c.RegistryLogin(ctx, types.AuthConfig{
+				Username:      viper.GetString("docker.username"),
+				Password:      viper.GetString("docker.password"),
+				Email:         viper.GetString("docker.email"),
+				ServerAddress: viper.GetString("docker.serveraddr"),
+			})
+			if err != nil {
+				dockerClientError = errors.Wrap(err, "error logging in")
+			}
+		}
+
+		dockerClient := &Client{
+			cli: c,
+			ctx: ctx,
+			hub: hub,
+		}
+		if err := dockerClient.startRedis(); err != nil {
+			dockerClientError = errors.Wrap(err, "error creating Docker Client")
+		}
+	})
+
+	return dockerClient, dockerClientError
 }
 
 func (c *Client) startRedis() error {
