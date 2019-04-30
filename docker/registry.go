@@ -32,9 +32,9 @@ func (c *Client) hubHasImage(name, hash string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "error getting tags from private registry (%s) for repo (%s)", c.hub.URL, name)
 	}
-	hash = strings.ToLower(hash)
+	hash = utils.StrLowerTrim(hash)
 	for _, t := range tags {
-		if strings.HasPrefix(strings.ToLower(t), hash) {
+		if strings.HasPrefix(utils.StrLowerTrim(t), hash) {
 			return true, nil
 		}
 	}
@@ -66,5 +66,5 @@ func formRegistryTag(name, hash string) string {
 		addr = fmt.Sprintf("%s:%d", addr, port)
 	}
 
-	return strings.ToLower(fmt.Sprintf("%s/%s:%s", addr, name, hash))
+	return utils.StrLowerTrim(fmt.Sprintf("%s/%s:%s", addr, name, hash))
 }

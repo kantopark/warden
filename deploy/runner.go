@@ -28,7 +28,7 @@ type Manager interface {
 // Swarm or Kubernetes depends on your preference
 func NewManager() (Manager, error) {
 	once.Do(func() {
-		r := strings.TrimSpace(strings.ToLower(viper.GetString("deploy.type")))
+		r := utils.StrLowerTrim(viper.GetString("deploy.type"))
 		switch r {
 		case "docker":
 			manager, managerError = newDockerRunner()
@@ -62,7 +62,7 @@ func (d *Deployment) validate() error {
 		err = append(err, "Hash field in deployment must be specified")
 	}
 
-	d.Alias = strings.ToLower(d.Alias)
+	d.Alias = utils.StrLowerTrim(d.Alias)
 	// Latest alias also becomes default route
 	if d.Alias == "latest" {
 		d.Alias = ""
@@ -97,14 +97,14 @@ func (d *Deployment) ImageName() string {
 		addr = fmt.Sprintf("%s:%d", addr, port)
 	}
 
-	return strings.ToLower(fmt.Sprintf("%s/%s:%s", addr, d.Project, d.Hash))
+	return utils.StrLowerTrim(fmt.Sprintf("%s/%s:%s", addr, d.Project, d.Hash))
 }
 
 // Gets the tail address (without the domain) for the deployment.
 func (d *Deployment) Address() string {
-	route := "/" + d.Project
+	route := d.Project
 	if d.Alias != "" {
 		route += "/" + d.Alias
 	}
-	return strings.ToLower(route)
+	return utils.StrLowerTrim(route)
 }

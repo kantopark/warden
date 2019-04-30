@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"warden/utils"
 )
 
 // The Project object. This model stores information such as the name,
@@ -31,7 +33,7 @@ func (p *Project) HasOwner(user User) bool {
 }
 
 func (p *Project) GetUniqueName() string {
-	return strings.ToLower(p.Name)
+	return utils.StrLowerTrim(p.Name)
 }
 
 func (p *Project) Validate() error {

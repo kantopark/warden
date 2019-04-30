@@ -1,12 +1,11 @@
 package store
 
 import (
-	"strings"
-
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 
 	"warden/store/model"
+	"warden/utils"
 )
 
 // Creates a new project. Returns an error if creation fails
@@ -14,7 +13,7 @@ func (s *Store) ProjectCreate(gitUrl, name, description string, user model.User)
 	project := &model.Project{
 		GitURL:      gitUrl,
 		Name:        name,
-		NameUnique:  strings.ToLower(name),
+		NameUnique:  utils.StrLowerTrim(name),
 		Description: description,
 		Owners:      []model.User{user},
 	}
@@ -59,7 +58,7 @@ func (s *Store) ProjectGetById(id uint) (project *model.Project, err error) {
 
 // Searches for a project by it's name. Returns an error if query fails
 func (s *Store) ProjectGetByName(name string) (project *model.Project, err error) {
-	if err = s.db.Preload(_USER).First(project, "NameUnique = ?", strings.ToLower(name)).Error; err == gorm.ErrRecordNotFound {
+	if err = s.db.Preload(_USER).First(project, "NameUnique = ?", utils.StrLowerTrim(name)).Error; err == gorm.ErrRecordNotFound {
 		return nil, err
 	} else if err != nil {
 		return nil, errors.Wrapf(err, "could not find project with name: %s", name)

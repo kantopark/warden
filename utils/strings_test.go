@@ -6,6 +6,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func ExampleStrLowerTrim() {
+	StrLowerTrim("   HeLLo  ") // hello
+}
+
+func TestStrLowerTrim(t *testing.T) {
+	assert.Equal(t, StrLowerTrim("   HeLLo  "), "hello")
+	assert.NotEqual(t, StrLowerTrim("   HeLLo!  "), "hello")
+}
+
 func ExampleStrIn() {
 	StrIn("Hello", nil, "hello")
 	StrIn("Hello", &StrOption{IgnoreCase: false}, "hello")

@@ -6,6 +6,12 @@ type StrOption struct {
 	IgnoreCase bool
 }
 
+// Lowers and trims the string. This is commonly used to standardize string arguments
+// that will be used for comparisons
+func StrLowerTrim(s string) string {
+	return strings.TrimSpace(strings.ToLower(s))
+}
+
 // Checks if the string s is in the list of values specified. By default,
 // checks in a case insensitive manner
 func StrIn(s string, option *StrOption, values ...string) bool {

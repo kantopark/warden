@@ -74,9 +74,9 @@ func (c *Client) BuildImage(options ImageBuildOptions) error {
 	} else if utils.StrIsEmptyOrWhitespace(options.Name) {
 		return errors.New("project name must be specified")
 	}
-	options.Name = strings.ToLower(options.Name)
-	options.Hash = strings.ToLower(options.Hash)
-	options.buildId = strings.ToLower(fmt.Sprintf("%s-%s", options.GitURL, options.Hash))
+	options.Name = utils.StrLowerTrim(options.Name)
+	options.Hash = utils.StrLowerTrim(options.Hash)
+	options.buildId = utils.StrLowerTrim(fmt.Sprintf("%s-%s", options.GitURL, options.Hash))
 
 	if !utils.StrIsEmptyOrWhitespace(options.Hash) {
 		if hasTag, err := c.hubHasImage(options.Name, options.Hash); err != nil {
@@ -147,7 +147,7 @@ func (c *Client) buildImage(options ImageBuildOptions) error {
 
 	// Prepare the hash for the right checkout. If hash provided is an empty string or "latest",
 	// Will checkout the latest commit
-	options.Hash = strings.ToLower(strings.TrimSpace(options.Hash))
+	options.Hash = utils.StrLowerTrim(options.Hash)
 	commits, err := repo.CommitObjects()
 	if err != nil {
 		return errors.Wrap(err, "error getting repo commits")
@@ -312,7 +312,7 @@ func prepareDockerfileTemplate(dir, env, handler string) error {
 		Handler: handler,
 	}
 
-	switch strings.ToLower(env) {
+	switch utils.StrLowerTrim(env) {
 	case "python", "python3":
 		tpl, err := box.GetTemplate("python")
 		if err != nil {
