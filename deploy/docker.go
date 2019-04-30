@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
-	"strconv"
-	"time"
+	"net/http"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -42,7 +40,7 @@ type dockerManager struct {
 
 // Deploys an instance of the container on the Docker daemon
 func (m *dockerManager) DeployInstance(d Deployment) error {
-	port, err := findFreePort()
+	port, err := findFreePort(dockerPortMin, dockerPortMax)
 	if err != nil {
 		return errors.Wrap(err, "could not find free port for deployment")
 	}
@@ -92,6 +90,20 @@ func (m *dockerManager) StopInstance(d Deployment) error {
 	return nil
 }
 
+// Runs the instance s
+func (m *dockerManager) RunInstance(r *http.Request) (*http.Response, error) {
+	payload, err := NewPayload(r)
+	if err != nil {
+		return nil, errors.Wrap(err, "error forming payload")
+	}
+
+	resp, err := payload.Execute(m.routes.Get(payload.Address()))
+	if err != nil {
+		return nil, errors.Wrapf(err, "error encountered when running requested instance. \n%+v\n", payload)
+	}
+	return resp, nil
+}
+
 func (m *dockerManager) Close() error {
 	containers, err := m.cli.ContainerList(m.ctx, types.ContainerListOptions{All: true})
 	if err != nil {
@@ -132,44 +144,4 @@ func newDockerRunner() (*dockerManager, error) {
 	rm := newRouteMap()
 
 	return &dockerManager{rm, db, ctx, cli}, nil
-}
-
-// Finds a free port between 40000 and 42367. This is usually only used when
-// the runner is a base docker manager (local dev). A free port is found first
-// before binding that port with docker run. Since this is meant for docker
-// manager, the domain is assumed to always be localhost
-func findFreePort() (int, error) {
-	portChannel := make(chan int)
-	for port := dockerPortMin; port < dockerPortMax; port++ {
-		go func(testPort int) {
-			conn, err := net.Dial("tcp", ":"+strconv.Itoa(testPort))
-			if err != nil {
-				portChannel <- testPort
-				return
-			}
-			conn.Close()
-		}(port)
-	}
-
-	select {
-	case port := <-portChannel:
-		return port, nil
-	case <-time.After(20 * time.Second):
-		return 0, errors.New("unable to find free ports between 40000 and 42367")
-	}
-}
-
-// Gets the local IP address of the machine
-func getLocalIPAddress() (string, error) {
-	addresses, err := net.InterfaceAddrs()
-	if err != nil {
-		return "", errors.Wrap(err, "could not determine machine's IP address")
-	}
-
-	for _, a := range addresses {
-		if n, ok := a.(*net.IPNet); ok && !n.IP.IsLoopback() && n.IP.To4() != nil && n.IP.IsGlobalUnicast() {
-			return n.IP.String(), nil
-		}
-	}
-	return "", errors.New("could not find global unicast address for machine. Use ifconfig (unix) or ipconfig (windows) to check if machine is connected to a network")
 }

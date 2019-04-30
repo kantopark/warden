@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -18,6 +19,7 @@ var managerError error
 type Manager interface {
 	Close() error
 	DeployInstance(d Deployment) error
+	RunInstance(r *http.Request) (*http.Response, error)
 	StopInstance(d Deployment) error
 }
 
