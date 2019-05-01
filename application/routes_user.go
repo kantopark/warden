@@ -75,7 +75,7 @@ func (a *App) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := a.db.UserUpdatePassword(u)
+	user, err := a.db.UserUpdate(u)
 	if err != nil {
 		internalServerError(w, err)
 		return

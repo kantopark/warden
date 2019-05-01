@@ -19,6 +19,7 @@ func init() {
 
 // The user body payload sent from the front end
 type UserBody struct {
+	Email       string `json:"email"`
 	Username    string `json:"username"`
 	Password    string `json:"password"`
 	NewPassword string `json:"new_password,omitempty"`
@@ -30,7 +31,7 @@ func (s *Store) UserCreate(u UserBody) (*model.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	user := &model.User{Username: u.Username, Password: string(pw)}
+	user := &model.User{Username: u.Username, Password: string(pw), Email: u.Email, Type: "basic"}
 	if err := user.Validate(); err != nil {
 		return nil, err
 	}
@@ -79,23 +80,29 @@ func (s *Store) UserList(maskPassword bool) (users []*model.User, err error) {
 	return
 }
 
-// Updates user with specified old name to new name. Returns an error if update fails
-func (s *Store) UserUpdatePassword(u UserBody) (*model.User, error) {
+// Updates user. Returns an error if update fails
+func (s *Store) UserUpdate(u UserBody) (*model.User, error) {
 	user, err := s.UserGet(u.Username, false)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := user.Validate(); err != nil {
-		return nil, err
-	}
-	if err := ComparePasswords(u.Password, user.Password); err != nil {
-		return nil, err
+	// change password
+	if u.NewPassword != "" {
+		if err := ComparePasswords(u.Password, user.Password); err != nil {
+			return nil, err
+		}
+		user.Password = u.NewPassword
 	}
 
-	user.Password = u.NewPassword
+	// change email
+	if u.Email != user.Email {
+		user.Email = u.Email
+	}
+
+	// check that all is well
 	if err := user.Validate(); err != nil {
-		return nil, errors.Wrap(err, "new password does not fulfil criteria")
+		return nil, err
 	}
 
 	if err := s.db.Save(user).Error; err != nil {
