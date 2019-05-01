@@ -33,7 +33,8 @@ func (a *App) Router() *chi.Mux {
 	r.Route("/user", func(r chi.Router) {
 		r.Get("/", a.ListUsers)
 		r.Post("/", a.CreateUser)
-		r.Put("/{name}", a.UpdateUser)
+		r.Put("/", a.UpdateUser)
+		r.Get("/{name}", a.GetUser)
 		r.Delete("/{name}", a.DeleteUser)
 	})
 

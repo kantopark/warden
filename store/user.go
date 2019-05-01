@@ -25,7 +25,7 @@ type UserBody struct {
 }
 
 // Creates a user with the given username. Returns an error if creation fails
-func (s *Store) UserCreate(u *UserBody) (*model.User, error) {
+func (s *Store) UserCreate(u UserBody) (*model.User, error) {
 	pw, err := HashPassword(u.Password)
 	if err != nil {
 		return nil, err
@@ -42,13 +42,10 @@ func (s *Store) UserCreate(u *UserBody) (*model.User, error) {
 }
 
 // Deletes user with specified name. Returns an error if removal fails
-func (s *Store) UserDelete(u *UserBody) error {
-	user, err := s.UserGet(u.Username, false)
+// Only admin can run this function
+func (s *Store) UserDelete(name string) error {
+	user, err := s.UserGet(name, false)
 	if err != nil {
-		return err
-	}
-
-	if err := ComparePasswords(u.Password, user.Password); err != nil {
 		return err
 	}
 
@@ -59,32 +56,31 @@ func (s *Store) UserDelete(u *UserBody) error {
 }
 
 // Gets a user with specified name. Returns an error if user cannot be found
-func (s *Store) UserGet(name string, noPassword bool) (user *model.User, err error) {
+func (s *Store) UserGet(name string, maskPassword bool) (user *model.User, err error) {
 	if err = s.db.Preload(_PROJECT).First(&user, "Username = ?", name).Error; err != nil {
 		return nil, errors.Wrapf(err, "could not find user with name: %s", name)
 	}
-	if noPassword {
-		user.Password = ""
-	}
+	user.MaskPassword(maskPassword)
 	return
 }
 
 // Lists all users along with the projects that the users are involved in.
 // Returns an error if query fails
-func (s *Store) UserList(noPassword bool) (users []*model.User, err error) {
+func (s *Store) UserList(maskPassword bool) (users []*model.User, err error) {
 	if err = s.db.Preload(_PROJECT).Find(&users).Error; err != nil {
 		return nil, errors.Wrap(err, "could not load users")
 	}
-	if noPassword {
+
+	if maskPassword {
 		for _, u := range users {
-			u.Password = ""
+			u.MaskPassword(maskPassword)
 		}
 	}
 	return
 }
 
 // Updates user with specified old name to new name. Returns an error if update fails
-func (s *Store) UserUpdatePassword(u *UserBody) (*model.User, error) {
+func (s *Store) UserUpdatePassword(u UserBody) (*model.User, error) {
 	user, err := s.UserGet(u.Username, false)
 	if err != nil {
 		return nil, err
@@ -105,6 +101,20 @@ func (s *Store) UserUpdatePassword(u *UserBody) (*model.User, error) {
 	if err := s.db.Save(user).Error; err != nil {
 		return nil, errors.Wrapf(err, "could not update password for user '%s'", u.Username)
 	}
+	return user, nil
+}
+
+// Checks if the user credentials are valid. If so, returns the User object.
+// Otherwise, returns an error
+func (s *Store) UserLogin(u UserBody, maskPassword bool) (*model.User, error) {
+	user, err := s.UserGet(u.Username, false)
+	if err != nil {
+		return nil, err
+	}
+	if err := ComparePasswords(u.Password, user.Password); err != nil {
+		return nil, err
+	}
+	user.MaskPassword(maskPassword)
 	return user, nil
 }
 

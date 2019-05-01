@@ -34,3 +34,9 @@ func (u *User) Validate() error {
 func (u *User) IsAdmin() bool {
 	return utils.StrLowerTrim(u.Type) == "admin"
 }
+
+func (u *User) MaskPassword(mask bool) {
+	if mask {
+		u.Password = ""
+	}
+}
