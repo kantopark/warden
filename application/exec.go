@@ -1,13 +1,18 @@
 package application
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/go-chi/chi"
+)
 
 // Executes the function specified
-func (a *App) ExecuteFunctionGet(w http.ResponseWriter, r *http.Request) {
+func (a *App) ExecuteInstance(w http.ResponseWriter, r *http.Request) {
+	project := chi.URLParam(r, "project")
+	alias := chi.URLParam(r, "alias")
+	if alias == "" {
+		alias = "latest"
+	}
 
-}
-
-// Executes the function specified
-func (a *App) ExecuteFunctionPost(w http.ResponseWriter, r *http.Request) {
-
+	panic(project)
 }

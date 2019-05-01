@@ -1,48 +1,9 @@
 package application
 
 import (
-	"log"
-
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/spf13/viper"
-
-	"warden/docker"
-	"warden/store"
 )
-
-type App struct {
-	cli *docker.Client
-	db  *store.Store
-}
-
-// Creates a new App object
-func NewApp() *App {
-	_cli, err := docker.NewClient()
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	dialect := viper.GetString("store.dialect")
-	dsn := viper.GetString("store.dsn")
-	_db, err := store.NewStore(dialect, dsn)
-	if err != nil {
-		log.Fatalf("error creating store: %s\n", err)
-	}
-
-	app := &App{
-		cli: _cli,
-		db:  _db,
-	}
-
-	return app
-}
-
-func (a *App) Close() (err error) {
-	err = a.db.Close()
-	err = a.cli.Close()
-	return err
-}
 
 func (a *App) Router() *chi.Mux {
 	r := chi.NewRouter()
@@ -53,29 +14,35 @@ func (a *App) Router() *chi.Mux {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(StripSlashes)
 
-	r.Route("/function", func(r chi.Router) {
-		r.Get("/", a.ListFunctions)
-		r.Get("/{name}", a.ReadFunction)
+	r.Route("/project", func(r chi.Router) {
+		r.Get("/", a.ListProjects)
+		r.Get("/{name}", a.GetProject)
+		r.Get("/{name}/{instance}", a.GetProjectInstance)
 
-		r.Post("/", a.CreateFunction)
-		r.Put("/", a.UpdateFunction)
-		r.Delete("/", a.DeleteFunction)
+		r.Post("/", a.CreateProject)
+		r.Put("/{name}", a.UpdateProject)
+		r.Delete("/{name}", a.DeleteProject)
+
+		r.Post("/{name}", a.CreateProjectInstance)
+		r.Put("/{name}/{instance}", a.UpdateProjectInstance)
+		r.Delete("/{name}/{instance}", a.DeleteProjectInstance)
 	})
 
-	r.Route("/runinfo", func(r chi.Router) {
-		r.Get("/{name}", a.ListRunInfo)
-		r.Post("/", a.CreateRunInfo)
-		r.Put("/", a.UpdateRunInfo)
-		r.Delete("/", a.DeleteRunInfo)
+	r.Route("/user", func(r chi.Router) {
+		r.Get("/", a.ListUsers)
+		r.Post("/", a.CreateUser)
+		r.Put("/{name}", a.UpdateUser)
+		r.Delete("/{name}", a.DeleteUser)
 	})
 
-	r.Route("/exec", func(r chi.Router) {
-		r.Get("/{name}", a.ExecuteFunctionGet)
-		r.Get("/{name}/{alias}", a.ExecuteFunctionGet)
-
-		r.Post("/{name}", a.ExecuteFunctionPost)
-		r.Post("/{name}/alias", a.ExecuteFunctionPost)
+	// Execute instance
+	r.Route("/e", func(r chi.Router) {
+		r.Get("/{project}", a.ExecuteInstance)
+		r.Get("/{project}/{alias}", a.ExecuteInstance)
+		r.Post("/{project}", a.ExecuteInstance)
+		r.Post("/{project}/{alias}", a.ExecuteInstance)
 	})
 
 	return r
