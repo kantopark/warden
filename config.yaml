@@ -1,3 +1,9 @@
+# Auth determines the type of authentication. There are a number of possible options
+auth:
+  hash_cost: 20  # the cost to salt and hashing. If smaller than 10, will be set to 10
+  pw_len: 6  # minimum password length
+  type: jwt
+
 # deploy describes the actual function executor
 deploy:
   type: docker  # runner to handle deployment, valid values are docker (for local test), swarm or kubernetes
