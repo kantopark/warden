@@ -12,7 +12,7 @@ func ExampleStrLowerTrim() {
 
 func TestStrLowerTrim(t *testing.T) {
 	assert.Equal(t, StrLowerTrim("   HeLLo  "), "hello")
-	assert.NotEqual(t, StrLowerTrim("   HeLLo!  "), "hello")
+	assert.NotEqual(t, StrLowerTrim("   HeLLo!  "), "HELLO!")
 }
 
 func ExampleStrIn() {
@@ -43,11 +43,6 @@ func TestStrIsEmptyOrWhitespace(t *testing.T) {
 	assert.True(t, StrIsEmptyOrWhitespace("  \n "))
 }
 
-func TestStrIsIn(t *testing.T) {
-	assert.True(t, StrIsIn("hello", []string{"hello", "world"}))
-	assert.False(t, StrIsIn("hello", []string{"Hello", "world"}))
-}
-
 func ExampleStrIsIn() {
 	listOfStrings := []string{"hello", "world"}
 	if StrIsIn("hello", listOfStrings) {
@@ -55,10 +50,9 @@ func ExampleStrIsIn() {
 	}
 }
 
-func TestStrIsInEqualFold(t *testing.T) {
+func TestStrIsIn(t *testing.T) {
 	assert.True(t, StrIsIn("hello", []string{"hello", "world"}))
-	assert.True(t, StrIsIn("hello", []string{"Hello", "world"}))
-	assert.False(t, StrIsIn("hello", []string{"Python", "world"}))
+	assert.False(t, StrIsIn("hello", []string{"Hello", "world"}))
 }
 
 func ExampleStrIsInEqualFold() {
@@ -71,4 +65,19 @@ func ExampleStrIsInEqualFold() {
 	if StrIsInEqualFold("hello", listOfStringsUpper) {
 		// ... this will be true too!
 	}
+}
+
+func TestStrIsInEqualFold(t *testing.T) {
+	assert.True(t, StrIsIn("hello", []string{"hello", "world"}))
+	assert.True(t, StrIsIn("hello", []string{"Hello", "world"}))
+	assert.False(t, StrIsIn("hello", []string{"Python", "world"}))
+}
+
+func ExampleStrUpperTrim() {
+	StrUpperTrim("   HeLLo  ") // HELLO
+}
+
+func TestStrUpperTrim(t *testing.T) {
+	assert.Equal(t, StrLowerTrim("   HeLLo  "), "HELLO")
+	assert.NotEqual(t, StrLowerTrim("   HeLLo!  "), "hello!")
 }

@@ -69,3 +69,9 @@ func StrIsInEqualFold(s string, list []string) bool {
 	}
 	return false
 }
+
+// Uppers and trims the string. This is commonly used to standardize string arguments
+// that will be used for comparisons
+func StrUpperTrim(s string) string {
+	return strings.TrimSpace(strings.ToUpper(s))
+}
