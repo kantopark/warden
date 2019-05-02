@@ -25,6 +25,14 @@ func TestProject(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, projects, 2)
 
+	projects, err = S.ProjectListByUser(username)
+	assert.Nil(t, err)
+	assert.Len(t, projects, 2)
+
+	projects, err = S.ProjectListByUser("false_name")
+	assert.Nil(t, err)
+	assert.Len(t, projects, 0)
+
 	_, err = S.ProjectGetById(proj.ID)
 	assert.Nil(t, err)
 

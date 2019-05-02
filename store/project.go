@@ -1,11 +1,12 @@
 package store
 
 import (
+	"log"
+
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 
 	"warden/store/model"
-	"warden/utils"
 )
 
 // Creates a new project. Returns an error if creation fails
@@ -13,7 +14,6 @@ func (s *Store) ProjectCreate(gitUrl, name, description string, user model.User)
 	project := &model.Project{
 		GitURL:      gitUrl,
 		Name:        name,
-		UniqueName:  utils.StrLowerTrim(name),
 		Description: description,
 		Owners:      []model.User{user},
 	}
@@ -56,7 +56,7 @@ func (s *Store) ProjectGetById(id uint) (*model.Project, error) {
 // Searches for a project by it's name. Returns an error if query fails
 func (s *Store) ProjectGetByName(name string) (*model.Project, error) {
 	var project model.Project
-	if err := s.db.Preload(_OWNERS).Preload(_INSTANCES).First(&project, "unique_name = ?", utils.StrLowerTrim(name)).Error; err == gorm.ErrRecordNotFound {
+	if err := s.db.Preload(_OWNERS).Preload(_INSTANCES).First(&project, "unique_name = ?", project.GetUniqueName(name)).Error; err == gorm.ErrRecordNotFound {
 		return nil, err
 	} else if err != nil {
 		return nil, errors.Wrapf(err, "could not find project with name: %s", name)
@@ -64,12 +64,29 @@ func (s *Store) ProjectGetByName(name string) (*model.Project, error) {
 	return &project, nil
 }
 
-// Lists all projects
+// Lists all projects. This is normally used by admins since it'll list all projects
 func (s *Store) ProjectList() (projects []model.Project, err error) {
 	if err := s.db.Preload(_OWNERS).Preload(_INSTANCES).Find(&projects).Error; err != nil {
 		return nil, errors.Wrap(err, "could not list projects")
 	}
-	return projects, nil
+	return
+}
+
+func (s *Store) ProjectListByUser(username string) (projects []model.Project, err error) {
+	proj, err := s.ProjectList()
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range proj {
+		if p.HasOwner(username) {
+			projects = append(projects, p)
+		}
+	}
+
+	for _, p := range projects {
+		log.Printf("%+v\n", p)
+	}
+	return
 }
 
 // Updates the existing project with the new project. The existing project is identified by the ID
@@ -85,7 +102,7 @@ func (s *Store) ProjectUpdate(newProj *model.Project) (*model.Project, error) {
 	}
 
 	project.Name = newProj.Name
-	project.UniqueName = newProj.GetUniqueName()
+	project.UniqueName = newProj.GetUniqueName(project.Name)
 	project.Description = newProj.Description
 	project.GitURL = newProj.GitURL
 	if newProj.Owners != nil && len(newProj.Owners) > 0 {

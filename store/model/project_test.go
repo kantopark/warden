@@ -29,10 +29,8 @@ func TestProject(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, project.UniqueName, "buseta")
 
-	assert.True(t, project.HasOwner(user))
-
-	user.Username = "bad_username"
-	assert.False(t, project.HasOwner(user))
+	assert.True(t, project.HasOwner(user.UniqueName))
+	assert.False(t, project.HasOwner("bad_username"))
 
 	project.GitURL = "http://github.com/yi-jiayu/bus-eta-bot.git"
 	err = project.Validate()

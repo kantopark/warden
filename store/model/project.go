@@ -23,17 +23,17 @@ type Project struct {
 	Owners      []User     `gorm:"many2many:user_project"`
 }
 
-func (p *Project) HasOwner(user User) bool {
+func (p *Project) HasOwner(username string) bool {
 	for _, u := range p.Owners {
-		if strings.EqualFold(u.Username, user.Username) {
+		if strings.EqualFold(u.UniqueName, p.GetUniqueName(username)) {
 			return true
 		}
 	}
 	return false
 }
 
-func (p *Project) GetUniqueName() string {
-	return utils.StrLowerTrim(p.Name)
+func (p *Project) GetUniqueName(name string) string {
+	return utils.StrLowerTrim(name)
 }
 
 func (p *Project) Validate() error {
@@ -47,6 +47,6 @@ func (p *Project) Validate() error {
 		return errors.New("Project name must be 4 characters or longer")
 	}
 
-	p.UniqueName = p.GetUniqueName()
+	p.UniqueName = p.GetUniqueName(p.Name)
 	return nil
 }
