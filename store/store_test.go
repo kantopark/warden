@@ -10,7 +10,12 @@ import (
 	"warden/config"
 )
 
-var S *Store
+var (
+	S        *Store
+	username = "daniel"
+	password = "password"
+	email    = "daniel.bok@outlook.com"
+)
 
 func init() {
 	config.ReadConfig()
@@ -24,9 +29,9 @@ func init() {
 	S = _store
 
 	user, err := S.UserCreate(UserBody{
-		Email:    "daniel.bok@outlook.com",
-		Username: "daniel",
-		Password: "password",
+		Email:    email,
+		Username: username,
+		Password: password,
 	})
 	if err != nil {
 		log.Fatalln(err)

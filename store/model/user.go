@@ -12,10 +12,10 @@ import (
 var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 type User struct {
-	Id         uint      `gorm:"primary_key"`
+	ID         uint      `gorm:"primary_key"`
 	Email      string    `gorm:"type:varchar(255);unique;index"`
 	Username   string    `gorm:"type:varchar(100)"`
-	UniqueName string    `gorm:"type:varchar(100);unique;index"`
+	UniqueName string    `gorm:"column:unique_name;type:varchar(100);unique;index"`
 	Password   string    `gorm:"type:varchar(255)"`
 	Projects   []Project `gorm:"many2many:user_project;"`
 	Type       string    `gorm:"type:varchar(10);default:'basic'"`
@@ -33,7 +33,7 @@ func (u *User) Validate() error {
 	}
 
 	u.Type = utils.StrLowerTrim(u.Type)
-	if utils.StrIsIn(u.Type, []string{"basic", "admin"}) {
+	if !utils.StrIsIn(u.Type, []string{"basic", "admin"}) {
 		return errors.Errorf("Unknown user type: '%s'", u.Type)
 	}
 

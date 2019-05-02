@@ -6,6 +6,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"warden/store/model"
+	"warden/utils"
 )
 
 var hashCost int
@@ -57,18 +58,19 @@ func (s *Store) UserDelete(name string) error {
 }
 
 // Gets a user with specified name. Returns an error if user cannot be found
-func (s *Store) UserGet(name string, maskPassword bool) (user *model.User, err error) {
-	if err = s.db.Preload(_PROJECT).First(&user, "Username = ?", name).Error; err != nil {
-		return nil, errors.Wrapf(err, "could not find user with name: %s", name)
+func (s *Store) UserGet(name string, maskPassword bool) (*model.User, error) {
+	var user model.User
+	if err := s.db.Preload(_PROJECTS).First(&user, "unique_name = ?", utils.StrLowerTrim(name)).Error; err != nil {
+		return nil, errors.Wrapf(err, "could not find user with username: %s", name)
 	}
 	user.MaskPassword(maskPassword)
-	return
+	return &user, nil
 }
 
 // Lists all users along with the projects that the users are involved in.
 // Returns an error if query fails
-func (s *Store) UserList(maskPassword bool) (users []*model.User, err error) {
-	if err = s.db.Preload(_PROJECT).Find(&users).Error; err != nil {
+func (s *Store) UserList(maskPassword bool) (users []model.User, err error) {
+	if err = s.db.Preload(_PROJECTS).Find(&users).Error; err != nil {
 		return nil, errors.Wrap(err, "could not load users")
 	}
 
@@ -111,7 +113,7 @@ func (s *Store) UserUpdate(u UserBody) (*model.User, error) {
 	return user, nil
 }
 
-// Checks if the user credentials are valid. If so, returns the User object.
+// Checks if the user credentials are valid. If credentials are invalid, returns the User object.
 // Otherwise, returns an error
 func (s *Store) UserLogin(u UserBody, maskPassword bool) (*model.User, error) {
 	user, err := s.UserGet(u.Username, false)
@@ -137,12 +139,7 @@ func HashPassword(password string) ([]byte, error) {
 // Compares the plain-text original string (password) against the hashed password.
 // After hashing the original, returns no errors if both matches and an error otherwise.
 func ComparePasswords(plain, hashed string) error {
-	hashedPlain, err := HashPassword(plain)
-	if err != nil {
-		return err
-	}
-	err = bcrypt.CompareHashAndPassword(hashedPlain, []byte(hashed))
-	if err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(hashed), []byte(plain)); err != nil {
 		return errors.Wrap(err, "passwords do not match")
 	}
 	return nil
