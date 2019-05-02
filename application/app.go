@@ -1,8 +1,6 @@
 package application
 
 import (
-	"log"
-
 	"warden/docker"
 	"warden/store"
 )
@@ -14,15 +12,13 @@ type App struct {
 
 // Creates a new App object
 func NewApp() *App {
+	authInit()
+
 	_dck, err := docker.NewClient()
-	if err != nil {
-		log.Fatalln(err)
-	}
+	fatalIfError(err)
 
 	_db, err := store.NewStore()
-	if err != nil {
-		log.Fatalf("error creating store: %s\n", err)
-	}
+	fatalIfError(err)
 
 	app := &App{
 		dck: _dck,
@@ -32,8 +28,11 @@ func NewApp() *App {
 	return app
 }
 
-func (a *App) Close() (err error) {
-	err = a.db.Close()
-	err = a.dck.Close()
-	return err
+func (a *App) Close() {
+	err := a.db.Close()
+	fatalIfError(err)
+
+	// Ignoring docker close
+	//err = a.dck.Close()
+	//fatalIfError(err)
 }

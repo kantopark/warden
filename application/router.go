@@ -3,6 +3,7 @@ package application
 import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/jwtauth"
 )
 
 func (a *App) Router() *chi.Mux {
@@ -16,34 +17,46 @@ func (a *App) Router() *chi.Mux {
 	r.Use(middleware.Recoverer)
 	r.Use(StripSlashes)
 
-	r.Route("/project", func(r chi.Router) {
-		r.Get("/", a.ListProjects)
-		r.Get("/{name}", a.GetProject)
-		r.Get("/{name}/{instance}", a.GetProjectInstance)
+	// Protected paths
+	r.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(jwtToken))
+		r.Use(JWTAuthenticate)
 
-		r.Post("/", a.CreateProject)
-		r.Put("/{name}", a.UpdateProject)
-		r.Delete("/{name}", a.DeleteProject)
+		r.Route("/project", func(r chi.Router) {
+			r.Get("/", a.ListProjects)
+			r.Get("/{name}", a.GetProject)
+			r.Get("/{name}/{instance}", a.GetProjectInstance)
 
-		r.Post("/{name}", a.CreateProjectInstance)
-		r.Put("/{name}/{instance}", a.UpdateProjectInstance)
-		r.Delete("/{name}/{instance}", a.DeleteProjectInstance)
+			r.Post("/", a.CreateProject)
+			r.Put("/{name}", a.UpdateProject)
+			r.Delete("/{name}", a.DeleteProject)
+
+			r.Post("/{name}", a.CreateProjectInstance)
+			r.Put("/{name}/{instance}", a.UpdateProjectInstance)
+			r.Delete("/{name}/{instance}", a.DeleteProjectInstance)
+		})
+
+		r.Route("/user", func(r chi.Router) {
+			r.Get("/", a.ListUsers)
+			r.Put("/", a.UpdateUser)
+			r.Get("/{name}", a.GetUser)
+			r.Delete("/{name}", a.DeleteUser)
+		})
 	})
 
-	r.Route("/user", func(r chi.Router) {
-		r.Get("/", a.ListUsers)
-		r.Post("/", a.CreateUser)
-		r.Put("/", a.UpdateUser)
-		r.Get("/{name}", a.GetUser)
-		r.Delete("/{name}", a.DeleteUser)
-	})
-
-	// Execute instance
-	r.Route("/e", func(r chi.Router) {
-		r.Get("/{project}", a.ExecuteInstance)
-		r.Get("/{project}/{alias}", a.ExecuteInstance)
-		r.Post("/{project}", a.ExecuteInstance)
-		r.Post("/{project}/{alias}", a.ExecuteInstance)
+	// public routes
+	r.Group(func(r chi.Router) {
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/login", a.Login)
+			r.Post("/signup", a.Signup)
+		})
+		// Execute instance
+		r.Route("/e", func(r chi.Router) {
+			r.Get("/{project}", a.ExecuteInstance)
+			r.Get("/{project}/{alias}", a.ExecuteInstance)
+			r.Post("/{project}", a.ExecuteInstance)
+			r.Post("/{project}/{alias}", a.ExecuteInstance)
+		})
 	})
 
 	return r

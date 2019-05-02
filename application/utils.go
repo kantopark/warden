@@ -3,10 +3,17 @@ package application
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/pkg/errors"
 )
+
+func fatalIfError(err error) {
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
 
 // The base error response body
 func errorResponse(w http.ResponseWriter, err error, statusCode int) {
