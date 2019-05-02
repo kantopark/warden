@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/Microsoft/go-winio v0.4.12 // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0
@@ -12,6 +13,7 @@ require (
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
 	github.com/go-chi/chi v4.0.2+incompatible
+	github.com/go-chi/jwtauth v3.3.0+incompatible
 	github.com/go-chi/valve v0.0.0-20170920024740-9e45288364f4
 	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/heroku/docker-registry-client v0.0.0-20181004091502-47ecf50fd8d4
