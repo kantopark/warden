@@ -14,6 +14,6 @@ run:
 .PHONY: run
 
 test:
-	go test ./...
+	go test ./... -cover
 
 .PHONY: test

@@ -19,7 +19,7 @@ func init() {
 	var err error
 
 	config.ReadConfig()
-	viper.Set("store.dsn", ":memory:")
+	viper.Set("store.dsn", "file:memdb1?mode=memory&cache=shared")
 	viper.Set("store.dialect", "sqlite3")
 
 	S, err = NewStore()
