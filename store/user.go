@@ -20,7 +20,7 @@ func init() {
 
 // The user body payload sent from the front end
 type UserBody struct {
-	Email       string `json:"email"`
+	Email       string `json:"email,omitempty"`
 	Username    string `json:"username"`
 	Password    string `json:"password"`
 	NewPassword string `json:"new_password,omitempty"`
