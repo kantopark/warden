@@ -91,6 +91,7 @@ func (c *Client) startRedis() error {
 	redisPort := viper.GetString("redis.port")
 
 	// pull the redis image if we can't find it in the local repo
+	log.Println(redisImage)
 	if img, _ := c.FindImageByName(redisImage); img == nil {
 		err := c.PullImage(redisImage, &ImagePullOptions{UseDockerHub: true})
 		if err != nil {

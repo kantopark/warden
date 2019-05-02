@@ -2,16 +2,6 @@ package docker
 
 import "log"
 
-var cli *Client
-
-func init() {
-	_cli, err := NewClient()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	cli = _cli
-}
-
 func ExampleClient_FindImageByName() {
 	cli, _ := NewClient()
 
