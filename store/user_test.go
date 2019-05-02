@@ -9,7 +9,6 @@ import (
 func TestStore_UserGet(t *testing.T) {
 	user, err := S.UserGet(username, false)
 	assert.Nil(t, err)
-	assert.Len(t, user.Projects, 1)
 	assert.False(t, user.IsAdmin())
 }
 

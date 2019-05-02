@@ -22,28 +22,33 @@ func (s *Store) InstanceCreate(commit, alias string, projectName string) (*model
 	if err = instance.Validate(); err != nil {
 		return nil, err
 	}
+	if err := s.db.Create(instance).Error; err != nil {
+		return nil, errors.Wrap(err, "error creating instance")
+	}
 
 	return instance, nil
 }
 
 // Gets a running instance of the project by the project ID and the commit hash
-func (s *Store) InstanceGetByHash(projectID uint, commitHash string) (inst *model.Instance, err error) {
-	if err = s.db.First(&inst, "ProjectID = ? AND CommitHash = ?", projectID, commitHash).Error; err == gorm.ErrRecordNotFound {
+func (s *Store) InstanceGetByHash(projectID uint, commitHash string) (*model.Instance, error) {
+	var inst model.Instance
+	if err := s.db.First(&inst, "project_id = ? AND commit_hash = ?", projectID, commitHash).Error; err == gorm.ErrRecordNotFound {
 		return nil, err
 	} else if err != nil {
 		return nil, errors.Wrapf(err, "error getting instance with project id '%d' and commit hash '%s'", projectID, commitHash)
 	}
-	return
+	return &inst, nil
 }
 
 // Gets a running instance of the project by the instance ID
-func (s *Store) InstanceGetById(id uint) (inst *model.Instance, err error) {
+func (s *Store) InstanceGetById(id uint) (*model.Instance, error) {
+	var inst model.Instance
 	if err := s.db.First(&inst, id).Error; err == gorm.ErrRecordNotFound {
 		return nil, err
 	} else if err != nil {
-		return nil, errors.Wrapf(err, "error getting instance with id '%d' and alias '%s'", id)
+		return nil, errors.Wrapf(err, "error getting instance with id '%d' and alias '%s'", id, inst.Alias)
 	}
-	return
+	return &inst, nil
 }
 
 // Deletes a running instance of the project
@@ -65,7 +70,7 @@ func (s *Store) InstanceUpdateByAlias(newInstance *model.Instance) (*model.Insta
 	if err := newInstance.Validate(); err != nil {
 		return nil, err
 	}
-	inst, err := s.InstanceGetById(newInstance.Id)
+	inst, err := s.InstanceGetById(newInstance.ID)
 	if err != nil {
 		return nil, err
 	}

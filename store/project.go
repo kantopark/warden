@@ -13,7 +13,7 @@ func (s *Store) ProjectCreate(gitUrl, name, description string, user model.User)
 	project := &model.Project{
 		GitURL:      gitUrl,
 		Name:        name,
-		NameUnique:  utils.StrLowerTrim(name),
+		UniqueName:  utils.StrLowerTrim(name),
 		Description: description,
 		Owners:      []model.User{user},
 	}
@@ -36,10 +36,6 @@ func (s *Store) ProjectDelete(name string, user model.User) error {
 		return err
 	}
 
-	if !project.HasOwner(user) {
-		return errors.Errorf("user '%s' does not own project", user.Username)
-	}
-
 	if err := s.db.Delete(project).Error; err != nil {
 		return errors.Wrapf(err, "error removing project")
 	}
@@ -47,31 +43,33 @@ func (s *Store) ProjectDelete(name string, user model.User) error {
 }
 
 // Searches for a project by it's ID. Returns an error if query fails
-func (s *Store) ProjectGetById(id uint) (project *model.Project, err error) {
-	if err = s.db.Preload(_USER).Preload(_INSTANCE).First(project, id).Error; err == gorm.ErrRecordNotFound {
+func (s *Store) ProjectGetById(id uint) (*model.Project, error) {
+	var project model.Project
+	if err := s.db.Preload(_OWNERS).Preload(_INSTANCES).First(&project, id).Error; err == gorm.ErrRecordNotFound {
 		return nil, err
 	} else if err != nil {
 		return nil, errors.Wrapf(err, "could not find project with id: %d", id)
 	}
-	return
+	return &project, nil
 }
 
 // Searches for a project by it's name. Returns an error if query fails
-func (s *Store) ProjectGetByName(name string) (project *model.Project, err error) {
-	if err = s.db.Preload(_USER).First(project, "NameUnique = ?", utils.StrLowerTrim(name)).Error; err == gorm.ErrRecordNotFound {
+func (s *Store) ProjectGetByName(name string) (*model.Project, error) {
+	var project model.Project
+	if err := s.db.Preload(_OWNERS).Preload(_INSTANCES).First(&project, "unique_name = ?", utils.StrLowerTrim(name)).Error; err == gorm.ErrRecordNotFound {
 		return nil, err
 	} else if err != nil {
 		return nil, errors.Wrapf(err, "could not find project with name: %s", name)
 	}
-	return
+	return &project, nil
 }
 
 // Lists all projects
-func (s *Store) ProjectList() (projects []*model.Project, err error) {
-	if err := s.db.Preload(_USER).Find(&projects).Error; err != nil {
+func (s *Store) ProjectList() (projects []model.Project, err error) {
+	if err := s.db.Preload(_OWNERS).Preload(_INSTANCES).Find(&projects).Error; err != nil {
 		return nil, errors.Wrap(err, "could not list projects")
 	}
-	return
+	return projects, nil
 }
 
 // Updates the existing project with the new project. The existing project is identified by the ID
@@ -87,7 +85,7 @@ func (s *Store) ProjectUpdate(newProj *model.Project) (*model.Project, error) {
 	}
 
 	project.Name = newProj.Name
-	project.NameUnique = newProj.GetUniqueName()
+	project.UniqueName = newProj.GetUniqueName()
 	project.Description = newProj.Description
 	project.GitURL = newProj.GitURL
 	if newProj.Owners != nil && len(newProj.Owners) > 0 {

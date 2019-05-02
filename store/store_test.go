@@ -13,25 +13,24 @@ import (
 var (
 	S        *Store
 	username = "daniel"
-	password = "password"
-	email    = "daniel.bok@outlook.com"
 )
 
 func init() {
+	var err error
+
 	config.ReadConfig()
 	viper.Set("store.dsn", ":memory:")
 	viper.Set("store.dialect", "sqlite3")
 
-	_store, err := NewStore()
+	S, err = NewStore()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	S = _store
 
 	user, err := S.UserCreate(UserBody{
-		Email:    email,
+		Email:    "daniel.bok@outlook.com",
 		Username: username,
-		Password: password,
+		Password: "password",
 	})
 	if err != nil {
 		log.Fatalln(err)

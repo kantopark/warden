@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	_INSTANCE = "Instance"
-	_PROJECT  = "Project"
-	_USER     = "User"
+	_INSTANCES = "Instances"
+	_PROJECTS  = "Projects"
+	_OWNERS    = "Owners"
 )
 
 // A store used to carry information on the functions.
