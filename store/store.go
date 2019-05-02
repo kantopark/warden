@@ -42,6 +42,8 @@ func NewStore() (*Store, error) {
 			return
 		}
 
+		db.LogMode(viper.GetBool("store.log_mode"))
+
 		store = &Store{db}
 		store.registerModels()
 	})

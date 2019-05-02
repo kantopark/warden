@@ -1,6 +1,10 @@
 # Auth determines the type of authentication. There are a number of possible options
 auth:
+  expiry: 24h  # token valid duration.  Valid time units are "ns", "us", "ms", "s", "m", "h"
   hash_cost: 20  # the cost to salt and hashing. If smaller than 10, will be set to 10
+  signing_alg: HS256  # HS256, HS384, HS512, RS256, RS384, RS512, ES256, ES384, ES512
+  public_key: your-public-key  # key used to verify token. If RS or ES, value is path to PEM file
+  private_key: your-private-key  # key used to sign jwt token. If RS or ES, value is path to PEM file
   pw_len: 6  # minimum password length
   type: jwt
 
@@ -42,5 +46,6 @@ server:
   graceperiod: 3s  # number of seconds for graceful shutdown
 
 store:
-  dsn: local-dev.db  # postgres example:  "host=myhost port=1433 user=username dbname=dbname password=mypassword"
+  dsn: ":memory:" # postgres example:  "host=myhost port=1433 user=username dbname=dbname password=mypassword"
   dialect: sqlite3  # supports sqlite3, mssql, mysql, postgres
+  log_mode: false  # used in debugging, this will print out all SQL logs

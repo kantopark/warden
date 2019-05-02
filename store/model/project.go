@@ -19,7 +19,7 @@ type Project struct {
 	Name        string     `gorm:"type:varchar(100)"`
 	Description string     `gorm:"type:varchar(512)"`
 	UniqueName  string     `gorm:"column:unique_name;type:varchar(100);unique;not null;index"`
-	Instances   []Instance // must at least have one Instance. To run the latest
+	Instances   []Instance `gorm:"foreignkey:ProjectID"` // must at least have one Instance. To run the latest
 	Owners      []User     `gorm:"many2many:user_project"`
 }
 
