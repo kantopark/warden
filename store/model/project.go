@@ -17,10 +17,10 @@ type Project struct {
 	ID          uint       `gorm:"primary_key"`
 	GitURL      string     `gorm:"column:git_url"`
 	Name        string     `gorm:"type:varchar(100)"`
-	NameUnique  string     `gorm:"type:varchar(100);unique;not null;index"`
 	Description string     `gorm:"type:varchar(512)"`
+	UniqueName  string     `gorm:"column:unique_name;type:varchar(100);unique;not null;index"`
 	Instances   []Instance // must at least have one Instance. To run the latest
-	Owners      []User     `gorm:"many2many:user_project;"`
+	Owners      []User     `gorm:"many2many:user_project"`
 }
 
 func (p *Project) HasOwner(user User) bool {
@@ -38,8 +38,8 @@ func (p *Project) GetUniqueName() string {
 
 func (p *Project) Validate() error {
 	p.GitURL = strings.TrimSpace(p.GitURL)
-	if matched, err := regexp.MatchString(`https?://\S+`, p.GitURL); !matched || err != nil {
-		return errors.Wrapf(err, "GitURL: '%s' is not a valid url", p.GitURL)
+	if matched, _ := regexp.MatchString(`^(?i)https?://\S+$`, p.GitURL); !matched {
+		return errors.Errorf("GitURL: '%s' is not a valid url", p.GitURL)
 	}
 
 	p.Name = strings.TrimSpace(p.Name)
@@ -47,6 +47,6 @@ func (p *Project) Validate() error {
 		return errors.New("Project name must be 4 characters or longer")
 	}
 
-	p.NameUnique = p.GetUniqueName()
+	p.UniqueName = p.GetUniqueName()
 	return nil
 }

@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"warden/utils"
 )
 
 // The Instance contains information on the how to run an instance of
@@ -14,14 +16,14 @@ import (
 // Internally, the default empty string "" will be aliased to "latest"
 // as well.
 type Instance struct {
-	Id         uint   `gorm:"primary_key"`
+	ID         uint   `gorm:"primary_key"`
 	Alias      string `gorm:"unique_index:idx_alias_function"`
-	CommitHash string `gorm:"varchar(100)"`
+	CommitHash string `gorm:"column:commit_hash;varchar(100)"`
 	ProjectID  uint   `gorm:"unique_index:idx_alias_function"`
 }
 
 func (i *Instance) Validate() error {
-	i.Alias = strings.TrimSpace(i.Alias)
+	i.Alias = utils.StrLowerTrim(i.Alias)
 	if i.Alias == "" {
 		i.Alias = "latest"
 	}
