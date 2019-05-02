@@ -68,9 +68,9 @@ func ExampleStrIsInEqualFold() {
 }
 
 func TestStrIsInEqualFold(t *testing.T) {
-	assert.True(t, StrIsIn("hello", []string{"hello", "world"}))
-	assert.True(t, StrIsIn("hello", []string{"Hello", "world"}))
-	assert.False(t, StrIsIn("hello", []string{"Python", "world"}))
+	assert.True(t, StrIsInEqualFold("hello", []string{"hello", "world"}))
+	assert.True(t, StrIsInEqualFold("hello", []string{"Hello", "world"}))
+	assert.False(t, StrIsInEqualFold("hello", []string{"Python", "world"}))
 }
 
 func ExampleStrUpperTrim() {
@@ -78,6 +78,6 @@ func ExampleStrUpperTrim() {
 }
 
 func TestStrUpperTrim(t *testing.T) {
-	assert.Equal(t, StrLowerTrim("   HeLLo  "), "HELLO")
-	assert.NotEqual(t, StrLowerTrim("   HeLLo!  "), "hello!")
+	assert.Equal(t, StrUpperTrim("   HeLLo  "), "HELLO")
+	assert.NotEqual(t, StrUpperTrim("   HeLLo!  "), "hello!")
 }
