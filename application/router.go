@@ -25,15 +25,15 @@ func (a *App) Router() *chi.Mux {
 		r.Route("/project", func(r chi.Router) {
 			r.Get("/", a.ListProjects)
 			r.Get("/{name}", a.GetProject)
-			r.Get("/{name}/{instance}", a.GetProjectInstance)
-
 			r.Post("/", a.CreateProject)
-			r.Put("/{name}", a.UpdateProject)
+			r.Put("/", a.UpdateProject)
 			r.Delete("/{name}", a.DeleteProject)
+		})
 
-			r.Post("/{name}", a.CreateProjectInstance)
-			r.Put("/{name}/{instance}", a.UpdateProjectInstance)
-			r.Delete("/{name}/{instance}", a.DeleteProjectInstance)
+		r.Route("/project-instance", func(r chi.Router) {
+			r.Post("/", a.CreateProjectInstance)
+			r.Put("/", a.UpdateProjectInstance)
+			r.Delete("/{name}/{id}", a.DeleteProjectInstance)
 		})
 
 		r.Route("/user", func(r chi.Router) {

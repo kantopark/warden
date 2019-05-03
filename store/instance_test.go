@@ -17,7 +17,7 @@ func TestInstance(t *testing.T) {
 	assert.Nil(t, err)
 
 	inst.Alias = "test-2"
-	inst, err = S.InstanceUpdateByAlias(inst)
+	inst, err = S.InstanceUpdate(inst)
 	assert.Nil(t, err)
 
 	err = S.InstanceDelete(inst.ProjectID, inst.CommitHash)

@@ -66,7 +66,7 @@ func (s *Store) InstanceDelete(projectID uint, commitHash string) error {
 // Updates a running instance of the project by the instance ID. Since it is an update, it assumes
 // that the user already has the ID of the instance. Thus we search for existing instance by the
 // instance ID
-func (s *Store) InstanceUpdateByAlias(newInstance *model.Instance) (*model.Instance, error) {
+func (s *Store) InstanceUpdate(newInstance *model.Instance) (*model.Instance, error) {
 	if err := newInstance.Validate(); err != nil {
 		return nil, err
 	}

@@ -9,6 +9,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+func currentUser(r *http.Request) userCtx {
+	return r.Context().Value(userContextKey).(userCtx)
+}
+
 func fatalIfError(err error) {
 	if err != nil {
 		log.Fatalln(err)
@@ -36,6 +40,10 @@ func errorResponse(w http.ResponseWriter, err error, statusCode int) {
 // Returns a Bad Request response
 func badRequest(w http.ResponseWriter, err error) {
 	errorResponse(w, err, http.StatusBadRequest)
+}
+
+func forbidden(w http.ResponseWriter, err error) {
+	errorResponse(w, err, http.StatusForbidden)
 }
 
 // Returns interface object as json.

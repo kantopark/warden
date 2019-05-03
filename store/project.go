@@ -30,7 +30,7 @@ func (s *Store) ProjectCreate(gitUrl, name, description string, user model.User)
 }
 
 // Deletes a project from the database. Returns an error if removal fails
-func (s *Store) ProjectDelete(name string, user model.User) error {
+func (s *Store) ProjectDelete(name string) error {
 	project, err := s.ProjectGetByName(name)
 	if err != nil {
 		return err

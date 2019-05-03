@@ -16,10 +16,10 @@ import (
 // Internally, the default empty string "" will be aliased to "latest"
 // as well.
 type Instance struct {
-	ID         uint   `gorm:"primary_key"`
-	Alias      string `gorm:"unique_index:idx_alias_function"`
-	CommitHash string `gorm:"column:commit_hash;varchar(100)"`
-	ProjectID  uint   `gorm:"unique_index:idx_alias_function"`
+	ID         uint   `json:"id" gorm:"primary_key"`
+	Alias      string `json:"alias" gorm:"unique_index:idx_alias_function"`
+	CommitHash string `json:"commit_hash" gorm:"column:commit_hash;varchar(100)"`
+	ProjectID  uint   `json:"project_id" gorm:"unique_index:idx_alias_function"`
 }
 
 func (i *Instance) Validate() error {
