@@ -4,34 +4,9 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 
 	"warden/store"
 )
-
-// Post request. Creates a new user (group)
-func (a *App) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var u store.UserBody
-	if err := parseJson(r.Body, &u); err != nil {
-		internalServerError(w, err)
-		return
-	}
-
-	minLen := viper.GetInt("auth.pw_len")
-	if len(u.Password) < minLen {
-		badRequest(w, errors.Errorf("Password must be >= %d characters", minLen))
-		return
-	}
-
-	user, err := a.db.UserCreate(u)
-	if err != nil {
-		internalServerError(w, err)
-		return
-	}
-
-	jsonify(w, user)
-}
 
 // Delete request. Removes a user (group)
 func (a *App) DeleteUser(w http.ResponseWriter, r *http.Request) {
